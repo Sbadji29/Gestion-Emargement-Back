@@ -8,7 +8,7 @@ const Examen = {
         codeExamen VARCHAR(50),
         dateExamen DATETIME,
         duree INT,
-        typeExamen ENUM('Devoir','Session1','Session2','Rattrapage'),
+        typeExamen ENUM('Devoir','Session1','Rattrapage'),
         statut ENUM('Planifie','EnCours','Termine','Annule'),
         nombrePlaces INT,
         idMatiere INT,

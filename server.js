@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/", (req, res) => {
   res.send("🚀 API Gestion des Émargements en cours d'exécution");
 });
-
+const authRoutes = require("./routes/auth.route");
 // Initialisation de la base de données
 async function initDatabase() {
   try {
@@ -51,7 +51,7 @@ async function initDatabase() {
 
 // Lancement du serveur
 const PORT = process.env.PORT || 3000;
-
+app.use("/api/auth", authRoutes);
 app.listen(PORT, async () => {
   console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
   await initDatabase();
