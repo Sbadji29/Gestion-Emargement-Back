@@ -1,4 +1,6 @@
 const express = require("express");
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger.config');
 const db = require("./config/db");
 
 const Utilisateur = require("./models/utilisateur.model");
@@ -21,11 +23,25 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Documentation Swagger
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "API Gestion Émargements - Documentation"
+}));
+
+// Route pour obtenir la spécification OpenAPI en JSON
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
 // Test route
 app.get("/", (req, res) => {
-  res.send("🚀 API Gestion des Émargements en cours d'exécution");
+  res.send("API Gestion des Émargements en cours d'exécution - Documentation disponible sur /api-docs");
 });
+
 const authRoutes = require("./routes/auth.route");
+
 // Initialisation de la base de données
 async function initDatabase() {
   try {
@@ -52,7 +68,9 @@ async function initDatabase() {
 // Lancement du serveur
 const PORT = process.env.PORT || 3000;
 app.use("/api/auth", authRoutes);
+
 app.listen(PORT, async () => {
-  console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
+  console.log(`Serveur démarré sur http://localhost:${PORT}`);
+  console.log(`Documentation Swagger disponible sur http://localhost:${PORT}/api-docs`);
   await initDatabase();
 });

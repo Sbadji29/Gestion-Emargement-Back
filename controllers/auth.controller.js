@@ -1,6 +1,11 @@
 const bcrypt = require("bcryptjs");
 const db = require("../config/db");
 const { generateToken, generateResetToken, verifyResetToken } = require("../utils/token");
+const { 
+  sendResetEmail, 
+  sendWelcomeEmail, 
+  sendPasswordChangedEmail 
+} = require("../utils/email");
 
 // Validation helpers
 const validateEmail = (email) => {
@@ -88,6 +93,20 @@ exports.register = async (req, res) => {
     };
     const token = generateToken(user);
 
+    // 📧 ENVOI EMAIL DE BIENVENUE (non bloquant)
+    const userName = `${prenom.trim()} ${nom.trim()}`;
+    sendWelcomeEmail(email.toLowerCase().trim(), userName)
+      .then((result) => {
+        if (result.success) {
+          console.log('✅ Email de bienvenue envoyé à:', email);
+        } else {
+          console.log('⚠️ Échec envoi email de bienvenue:', result.error);
+        }
+      })
+      .catch((error) => {
+        console.error('❌ Erreur email de bienvenue:', error);
+      });
+
     res.status(201).json({ 
       message: "Compte créé avec succès",
       token,
@@ -132,6 +151,13 @@ exports.login = async (req, res) => {
 
     const user = rows[0];
 
+    // Vérifier si le compte est actif
+    if (!user.actif) {
+      return res.status(403).json({ 
+        message: "Compte désactivé. Contactez l'administrateur" 
+      });
+    }
+
     const isMatch = await bcrypt.compare(motDePasse, user.motDePasse);
 
     if (!isMatch) {
@@ -139,6 +165,12 @@ exports.login = async (req, res) => {
         message: "Email ou mot de passe incorrect" 
       });
     }
+
+    // Mettre à jour la dernière connexion
+    await db.promise().query(
+      "UPDATE utilisateur SET derniereConnexion = NOW() WHERE idUtilisateur = ?",
+      [user.idUtilisateur]
+    );
 
     const token = generateToken(user);
 
@@ -166,7 +198,7 @@ exports.login = async (req, res) => {
 exports.profile = async (req, res) => {
   try {
     const [rows] = await db.promise().query(
-      "SELECT idUtilisateur, nom, prenom, email, role FROM utilisateur WHERE idUtilisateur = ?",
+      "SELECT idUtilisateur, nom, prenom, email, role, dateCreation, derniereConnexion FROM utilisateur WHERE idUtilisateur = ?",
       [req.user.id]
     );
 
@@ -219,7 +251,7 @@ exports.changePassword = async (req, res) => {
 
   try {
     const [rows] = await db.promise().query(
-      "SELECT motDePasse FROM utilisateur WHERE idUtilisateur = ?", 
+      "SELECT motDePasse, nom, prenom, email FROM utilisateur WHERE idUtilisateur = ?", 
       [userId]
     );
 
@@ -244,6 +276,20 @@ exports.changePassword = async (req, res) => {
       [hashedPassword, userId]
     );
 
+    // 📧 ENVOI EMAIL DE CONFIRMATION (non bloquant)
+    const userName = `${user.prenom} ${user.nom}`;
+    sendPasswordChangedEmail(user.email, userName)
+      .then((result) => {
+        if (result.success) {
+          console.log('✅ Email de confirmation envoyé à:', user.email);
+        } else {
+          console.log('⚠️ Échec envoi email de confirmation:', result.error);
+        }
+      })
+      .catch((error) => {
+        console.error('❌ Erreur email de confirmation:', error);
+      });
+
     res.json({ 
       message: "Mot de passe modifié avec succès" 
     });
@@ -255,7 +301,7 @@ exports.changePassword = async (req, res) => {
   }
 };
 
-// 🔑 MOT DE PASSE OUBLIÉ (générer token et envoyer email)
+// 🔒 MOT DE PASSE OUBLIÉ (générer token et envoyer email)
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
 
@@ -279,14 +325,18 @@ exports.forgotPassword = async (req, res) => {
     }
 
     const user = rows[0];
-    const resetToken = generateResetToken(user);
 
-    // Note: Votre modèle n'a pas les champs resetToken et resetTokenExpire
-    // Vous devrez les ajouter au modèle ou utiliser une table séparée
+    // Vérifier si le compte est actif
+    if (!user.actif) {
+      return res.json({
+        message: "Si cet email existe, un lien de réinitialisation a été envoyé"
+      });
+    }
+
+    const resetToken = generateResetToken(user);
     const hashedToken = await bcrypt.hash(resetToken, 10);
     
-    // Cette requête nécessite d'ajouter les colonnes resetToken et resetTokenExpire
-    // à votre table utilisateur
+    // Sauvegarder le token hashé en BDD
     await db.promise().query(
       `UPDATE utilisateur 
        SET resetToken = ?, 
@@ -297,16 +347,40 @@ exports.forgotPassword = async (req, res) => {
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-    const response = {
-      message: "Si cet email existe, un lien de réinitialisation a été envoyé"
-    };
+    // 📧 ENVOI EMAIL DE RÉINITIALISATION (bloquant pour s'assurer qu'il est envoyé)
+    const userName = `${user.prenom} ${user.nom}`;
+    
+    try {
+      const emailResult = await sendResetEmail(user.email, userName, resetUrl);
+      
+      console.log('✅ Email de réinitialisation envoyé à:', user.email);
+      
+      const response = {
+        message: "Si cet email existe, un lien de réinitialisation a été envoyé"
+      };
 
-    if (process.env.NODE_ENV === 'development') {
-      response.resetToken = resetToken;
-      response.resetUrl = resetUrl;
+      // En développement, renvoyer le token et l'URL pour faciliter les tests
+      if (process.env.NODE_ENV === 'development') {
+        response.resetToken = resetToken;
+        response.resetUrl = resetUrl;
+      }
+
+      res.json(response);
+    } catch (emailError) {
+      console.error('❌ Erreur envoi email de réinitialisation:', emailError);
+      
+      // Supprimer le token de la BDD si l'email n'a pas pu être envoyé
+      await db.promise().query(
+        `UPDATE utilisateur 
+         SET resetToken = NULL, resetTokenExpire = NULL 
+         WHERE idUtilisateur = ?`,
+        [user.idUtilisateur]
+      );
+      
+      return res.status(500).json({ 
+        message: "Erreur lors de l'envoi de l'email. Veuillez réessayer." 
+      });
     }
-
-    res.json(response);
   } catch (error) {
     console.error("Erreur mot de passe oublié:", error);
     res.status(500).json({ 
@@ -347,7 +421,7 @@ exports.resetPassword = async (req, res) => {
     }
 
     const [rows] = await db.promise().query(
-      `SELECT idUtilisateur, resetToken, resetTokenExpire, motDePasse 
+      `SELECT idUtilisateur, resetToken, resetTokenExpire, motDePasse, nom, prenom, email 
        FROM utilisateur 
        WHERE idUtilisateur = ? AND resetToken IS NOT NULL`,
       [decoded.id]
@@ -361,12 +435,14 @@ exports.resetPassword = async (req, res) => {
 
     const user = rows[0];
 
+    // Vérifier l'expiration du token
     if (new Date() > new Date(user.resetTokenExpire)) {
       return res.status(400).json({ 
         message: "Token expiré, veuillez en demander un nouveau" 
       });
     }
 
+    // Vérifier que le token correspond
     const isValidToken = await bcrypt.compare(resetToken, user.resetToken);
     
     if (!isValidToken) {
@@ -375,6 +451,7 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
+    // Vérifier que le nouveau mot de passe est différent de l'ancien
     const isSamePassword = await bcrypt.compare(newPassword, user.motDePasse);
     if (isSamePassword) {
       return res.status(400).json({ 
@@ -382,6 +459,7 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
+    // Mettre à jour le mot de passe et supprimer le token
     const hashedPassword = await bcrypt.hash(newPassword, 12);
     await db.promise().query(
       `UPDATE utilisateur 
@@ -391,6 +469,20 @@ exports.resetPassword = async (req, res) => {
        WHERE idUtilisateur = ?`,
       [hashedPassword, user.idUtilisateur]
     );
+
+    // 📧 ENVOI EMAIL DE CONFIRMATION (non bloquant)
+    const userName = `${user.prenom} ${user.nom}`;
+    sendPasswordChangedEmail(user.email, userName)
+      .then((result) => {
+        if (result.success) {
+          console.log('✅ Email de confirmation envoyé à:', user.email);
+        } else {
+          console.log('⚠️ Échec envoi email de confirmation:', result.error);
+        }
+      })
+      .catch((error) => {
+        console.error('❌ Erreur email de confirmation:', error);
+      });
 
     res.json({ 
       message: "Mot de passe réinitialisé avec succès" 
@@ -486,14 +578,14 @@ exports.deleteAccount = async (req, res) => {
       });
     }
 
-    // Hard delete car votre modèle n'a pas de champ actif
+    // Soft delete : désactiver le compte au lieu de le supprimer
     await db.promise().query(
-      "DELETE FROM utilisateur WHERE idUtilisateur = ?", 
+      "UPDATE utilisateur SET actif = 0 WHERE idUtilisateur = ?", 
       [userId]
     );
 
     res.json({ 
-      message: "Compte supprimé avec succès" 
+      message: "Compte désactivé avec succès" 
     });
   } catch (error) {
     console.error("Erreur suppression compte:", error);
@@ -509,13 +601,13 @@ exports.refreshToken = async (req, res) => {
 
   try {
     const [rows] = await db.promise().query(
-      "SELECT idUtilisateur, role FROM utilisateur WHERE idUtilisateur = ?",
+      "SELECT idUtilisateur, role FROM utilisateur WHERE idUtilisateur = ? AND actif = 1",
       [userId]
     );
 
     if (rows.length === 0) {
       return res.status(404).json({ 
-        message: "Utilisateur introuvable" 
+        message: "Utilisateur introuvable ou inactif" 
       });
     }
 
@@ -529,6 +621,24 @@ exports.refreshToken = async (req, res) => {
     console.error("Erreur rafraîchissement token:", error);
     res.status(500).json({ 
       message: "Erreur lors du rafraîchissement du token" 
+    });
+  }
+};
+
+// 🚪 DÉCONNEXION (Logout)
+exports.logout = async (req, res) => {
+  try {
+    // Avec JWT stateless, le logout se fait côté client
+    // Le serveur confirme simplement la demande de déconnexion
+    
+    res.json({ 
+      message: "Déconnexion réussie. Supprimez le token côté client." 
+    });
+  } catch (error) {
+    console.error("Erreur déconnexion:", error);
+    res.status(500).json({ 
+      message: "Erreur lors de la déconnexion",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
