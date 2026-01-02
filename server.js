@@ -41,7 +41,7 @@ app.get("/", (req, res) => {
 });
 
 const authRoutes = require("./routes/auth.route");
-
+const ufrRoutes= require("./routes/ufr.route");
 // Initialisation de la base de données
 async function initDatabase() {
   try {
@@ -68,6 +68,7 @@ async function initDatabase() {
 // Lancement du serveur
 const PORT = process.env.PORT || 3000;
 app.use("/api/auth", authRoutes);
+app.use("/api/ufr", ufrRoutes);
 
 app.listen(PORT, async () => {
   console.log(`Serveur démarré sur http://localhost:${PORT}`);

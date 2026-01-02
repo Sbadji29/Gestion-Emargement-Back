@@ -6,6 +6,8 @@ const Etudiant = {
       CREATE TABLE IF NOT EXISTS etudiant (
         id INT AUTO_INCREMENT PRIMARY KEY,
         codeEtudiant VARCHAR(50) UNIQUE,
+        classe VARCHAR(255) DEFAULT NULL,
+        section VARCHAR(255) DEFAULT NULL,
         idUtilisateur INT,
         idUfr INT,
         FOREIGN KEY (idUtilisateur) REFERENCES utilisateur(idUtilisateur),

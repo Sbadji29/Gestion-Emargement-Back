@@ -1,0 +1,133 @@
+const db = require("../config/db");
+
+// ➕ Créer une UFR
+exports.createUfr = async (req, res) => {
+  const { nom, adresse, telephone, email } = req.body;
+
+  if (!nom) {
+    return res.status(400).json({ message: "Le nom de l'UFR est obligatoire" });
+  }
+
+  try {
+    const [existing] = await db.promise().query(
+      "SELECT id FROM ufr WHERE nom = ?",
+      [nom.trim()]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({ message: "Cette UFR existe déjà" });
+    }
+
+    const [result] = await db.promise().query(
+      `INSERT INTO ufr (nom, adresse, telephone, email)
+       VALUES (?, ?, ?, ?)`,
+      [
+        nom.trim(),
+        adresse || null,
+        telephone || null,
+        email || null
+      ]
+    );
+
+    res.status(201).json({
+      message: "UFR créée avec succès",
+      ufr: {
+        id: result.insertId,
+        nom,
+        adresse,
+        telephone,
+        email
+      }
+    });
+  } catch (error) {
+    console.error("Erreur createUfr:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+// 📋 Lister toutes les UFR
+exports.getAllUfr = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query("SELECT * FROM ufr");
+    res.json({ ufrs: rows });
+  } catch (error) {
+    console.error("Erreur getAllUfr:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+// 🔍 Récupérer une UFR par ID
+exports.getUfrById = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [rows] = await db.promise().query(
+      "SELECT * FROM ufr WHERE id = ?",
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "UFR introuvable" });
+    }
+
+    res.json({ ufr: rows[0] });
+  } catch (error) {
+    console.error("Erreur getUfrById:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+// ✏️ Modifier une UFR
+exports.updateUfr = async (req, res) => {
+  const { id } = req.params;
+  const { nom, adresse, telephone, email } = req.body;
+
+  if (!nom) {
+    return res.status(400).json({ message: "Le nom de l'UFR est obligatoire" });
+  }
+
+  try {
+    const [result] = await db.promise().query(
+      `UPDATE ufr 
+       SET nom = ?, adresse = ?, telephone = ?, email = ?
+       WHERE id = ?`,
+      [
+        nom.trim(),
+        adresse || null,
+        telephone || null,
+        email || null,
+        id
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "UFR introuvable" });
+    }
+
+    res.json({ message: "UFR mise à jour avec succès" });
+  } catch (error) {
+    console.error("Erreur updateUfr:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+// 🗑️ Supprimer une UFR
+exports.deleteUfr = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [result] = await db.promise().query(
+      "DELETE FROM ufr WHERE id = ?",
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "UFR introuvable" });
+    }
+
+    res.json({ message: "UFR supprimée avec succès" });
+  } catch (error) {
+    console.error("Erreur deleteUfr:", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};

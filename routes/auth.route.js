@@ -35,7 +35,7 @@ const roleMiddleware = require("../middleware/role.middleware");
  *               email:
  *                 type: string
  *                 format: email
- *                 example: superadmin@ucad.sn
+ *                 example: superadmin@ugb.edu.sn
  *               motDePasse:
  *                 type: string
  *                 format: password
@@ -91,7 +91,7 @@ router.post("/create-superadmin", authController.createSuperAdmin);
  *               email:
  *                 type: string
  *                 format: email
- *                 example: admin.diop@ucad.sn
+ *                 example: admin.diop@ugb.edu.sn
  *               idUfr:
  *                 type: integer
  *                 example: 1
@@ -131,6 +131,8 @@ router.post("/create-admin", authMiddleware, authController.createAdmin);
  *               - prenom
  *               - email
  *               - codeEtudiant
+ *               - classe
+ *               - section
  *             properties:
  *               nom:
  *                 type: string
@@ -141,11 +143,19 @@ router.post("/create-admin", authMiddleware, authController.createAdmin);
  *               email:
  *                 type: string
  *                 format: email
- *                 example: fatou.seck@esp.sn
+ *                 example: test-test@ugb.edu.sn
  *               codeEtudiant:
  *                 type: string
- *                 example: ESP20240001
+ *                 example: P310000
  *                 description: Code unique de l'étudiant
+ *               classe:
+ *                type: string
+ *                example: L1 MPI
+ *                description: Niveau de l'etudiant
+ *               section:
+ *                type: string
+ *                example: Informatique
+ *                description: Section de l'etudiant
  *     responses:
  *       201:
  *         description: Étudiant créé avec succès
@@ -189,7 +199,7 @@ router.post("/create-etudiant", authMiddleware, authController.createEtudiant);
  *               email:
  *                 type: string
  *                 format: email
- *                 example: ibrahima.ndiaye@ucad.sn
+ *                 example: ibrahima.ndiaye@ugb.edu.sn
  *               motDePasse:
  *                 type: string
  *                 format: password
@@ -233,7 +243,7 @@ router.post("/register", authController.register);
  *               email:
  *                 type: string
  *                 format: email
- *                 example: admin.diop@ucad.sn
+ *                 example: admin.diop@ugb.edu.sn
  *               motDePasse:
  *                 type: string
  *                 format: password
@@ -337,7 +347,7 @@ router.put("/change-password", authMiddleware, authController.changePassword);
  *               email:
  *                 type: string
  *                 format: email
- *                 example: admin.diop@ucad.sn
+ *                 example: admin.diop@ugb.edu.sn
  *     responses:
  *       200:
  *         description: Email de réinitialisation envoyé (si l'email existe)
@@ -415,7 +425,7 @@ router.post("/reset-password", authController.resetPassword);
  *               email:
  *                 type: string
  *                 format: email
- *                 example: amadou.diop@ucad.sn
+ *                 example: amadou.diop@ugb.edu.sn
  *     responses:
  *       200:
  *         description: Profil mis à jour avec succès

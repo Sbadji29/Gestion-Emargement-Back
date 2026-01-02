@@ -254,93 +254,75 @@ exports.createAdmin = async (req, res) => {
 
 // 🎓 ADMIN CRÉE UN ÉTUDIANT
 exports.createEtudiant = async (req, res) => {
-  const { nom, prenom, email, codeEtudiant } = req.body;
+  const { nom, prenom, email, codeEtudiant, classe,section } = req.body;
 
-  // Vérifier que l'utilisateur connecté est ADMIN
   if (req.user.role !== 'ADMIN') {
-    return res.status(403).json({ 
-      message: "Seul un administrateur peut créer des étudiants" 
+    return res.status(403).json({
+      message: "Seul un administrateur peut créer des étudiants"
     });
   }
 
-  // Validation des champs
-  if (!nom || !prenom || !email || !codeEtudiant) {
-    return res.status(400).json({ 
-      message: "Tous les champs sont obligatoires (nom, prenom, email, codeEtudiant)" 
+  if (!nom || !prenom || !email || !codeEtudiant || !classe || !section) {
+    return res.status(400).json({
+      message: "Tous les champs sont obligatoires (nom, prenom, email, codeEtudiant, classe, section)"
     });
   }
 
   if (!validateEmail(email)) {
-    return res.status(400).json({ 
-      message: "Email invalide" 
-    });
+    return res.status(400).json({ message: "Email invalide" });
   }
 
   try {
-    // Récupérer l'idUfr de l'admin connecté
+    // Récupérer l'UFR de l'admin
     const [adminInfo] = await db.promise().query(
-      "SELECT idUfr FROM administrateur WHERE idUtilisateur = ?", 
+      "SELECT idUfr FROM administrateur WHERE idUtilisateur = ?",
       [req.user.id]
     );
 
     if (adminInfo.length === 0) {
-      return res.status(404).json({ 
-        message: "Informations administrateur introuvables" 
-      });
+      return res.status(404).json({ message: "Informations administrateur introuvables" });
     }
 
     const idUfr = adminInfo[0].idUfr;
 
-    // Vérifier si l'email existe déjà
-    const [existingEmail] = await db.promise().query(
-      "SELECT idUtilisateur FROM utilisateur WHERE email = ?", 
-      [email]
+    // Vérifications unicité
+    const [[emailExists]] = await db.promise().query(
+      "SELECT idUtilisateur FROM utilisateur WHERE email = ?",
+      [email.toLowerCase().trim()]
     );
 
-    if (existingEmail.length > 0) {
-      return res.status(409).json({ 
-        message: "Cet email est déjà utilisé" 
-      });
+    if (emailExists) {
+      return res.status(409).json({ message: "Cet email est déjà utilisé" });
     }
 
-    // Vérifier si le codeEtudiant existe déjà
-    const [existingCode] = await db.promise().query(
-      "SELECT id FROM etudiant WHERE codeEtudiant = ?", 
-      [codeEtudiant]
+    const [[codeExists]] = await db.promise().query(
+      "SELECT id FROM etudiant WHERE codeEtudiant = ?",
+      [codeEtudiant.trim()]
     );
 
-    if (existingCode.length > 0) {
-      return res.status(409).json({ 
-        message: "Ce code étudiant est déjà utilisé" 
-      });
+    if (codeExists) {
+      return res.status(409).json({ message: "Code étudiant déjà utilisé" });
     }
 
-    // Générer un mot de passe par défaut (pour éviter de fatiguer l'admin)
+    // Mot de passe par défaut
     const defaultPassword = generateDefaultPassword();
     const hashedPassword = await bcrypt.hash(defaultPassword, 12);
 
-    // Créer l'utilisateur ETUDIANT
-    const sqlUser = `
-      INSERT INTO utilisateur (nom, prenom, email, motDePasse, role)
-      VALUES (?, ?, ?, ?, 'ETUDIANT')
-    `;
+    // Création utilisateur
+    const [userResult] = await db.promise().query(
+      `INSERT INTO utilisateur (nom, prenom, email, motDePasse, role)
+       VALUES (?, ?, ?, ?, 'ETUDIANT')`,
+      [nom.trim(), prenom.trim(), email.toLowerCase().trim(), hashedPassword]
+    );
 
-    const [resultUser] = await db.promise().query(sqlUser, [
-      nom.trim(), 
-      prenom.trim(), 
-      email.toLowerCase().trim(), 
-      hashedPassword
-    ]);
+    const idUtilisateur = userResult.insertId;
 
-    const idUtilisateur = resultUser.insertId;
-
-    // Créer l'entrée dans la table etudiant
-    const sqlEtudiant = `
-      INSERT INTO etudiant (codeEtudiant, idUtilisateur, idUfr)
-      VALUES (?, ?, ?)
-    `;
-
-    await db.promise().query(sqlEtudiant, [codeEtudiant.trim(), idUtilisateur, idUfr]);
+    // Création étudiant
+    await db.promise().query(
+      `INSERT INTO etudiant (codeEtudiant, classe, idUtilisateur, idUfr, section)
+       VALUES (?, ?, ?, ?, ?)`,
+      [codeEtudiant.trim(), classe.trim(), idUtilisateur, idUfr,section.trim()]
+    );
 
     res.status(201).json({
       message: "Étudiant créé avec succès",
@@ -349,19 +331,23 @@ exports.createEtudiant = async (req, res) => {
         nom: nom.trim(),
         prenom: prenom.trim(),
         email: email.toLowerCase().trim(),
-        role: 'ETUDIANT',
+        role: "ETUDIANT",
         codeEtudiant: codeEtudiant.trim(),
-        idUfr: idUfr
+        classe: classe.trim(),
+        idUfr,
+        section: section.trim()
       }
     });
+
   } catch (error) {
     console.error("Erreur création étudiant:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: "Erreur lors de la création de l'étudiant",
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
+
 
 // 📝 INSCRIPTION (SURVEILLANT UNIQUEMENT)
 exports.register = async (req, res) => {
