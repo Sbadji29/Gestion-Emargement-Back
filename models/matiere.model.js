@@ -8,9 +8,12 @@ const Matiere = {
         code VARCHAR(50),
         nom VARCHAR(100),
         credits INT,
-        niveau VARCHAR(50),
+        idClasse INT,
+        idSection INT,
         idUfr INT,
-        FOREIGN KEY (idUfr) REFERENCES ufr(id)
+        FOREIGN KEY (idUfr) REFERENCES ufr(id),
+        FOREIGN KEY (idClasse) REFERENCES classe(id),
+        FOREIGN KEY (idSection) REFERENCES section(id)
       )
     `;
     return db.promise().query(sql);

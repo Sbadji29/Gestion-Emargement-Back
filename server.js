@@ -16,6 +16,7 @@ const Emargement = require("./models/emargement.model");
 const FeuillePresence = require("./models/feuillePresence.model");
 const AppelCandidature = require("./models/appelCandidature.model");
 const Notification = require("./models/notification.model");
+const Classe = require("./models/classe.model");
 
 const app = express();
 
@@ -58,6 +59,7 @@ async function initDatabase() {
     await FeuillePresence.createTable();
     await AppelCandidature.createTable();
     await Notification.createTable();
+    await Classe.createTable();
 
     console.log("Toutes les tables MySQL ont été créées avec succès");
   } catch (error) {
