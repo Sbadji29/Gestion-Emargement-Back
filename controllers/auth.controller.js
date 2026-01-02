@@ -4,7 +4,8 @@ const { generateToken, generateResetToken, verifyResetToken } = require("../util
 const { 
   sendResetEmail, 
   sendWelcomeEmail, 
-  sendPasswordChangedEmail 
+  sendPasswordChangedEmail,
+  sendAdminCredentialsEmail 
 } = require("../utils/email");
 
 // Validation helpers
@@ -14,16 +15,37 @@ const validateEmail = (email) => {
 };
 
 const validatePassword = (password) => {
-  // Au moins 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre
   return password.length >= 8 && 
          /[A-Z]/.test(password) && 
          /[a-z]/.test(password) && 
          /[0-9]/.test(password);
 };
 
-// 📝 INSCRIPTION
-exports.register = async (req, res) => {
-  const { nom, prenom, email, motDePasse, confirmMotDePasse, role = 'ETUDIANT' } = req.body;
+// Fonction pour générer un mot de passe par défaut
+const generateDefaultPassword = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let password = '';
+  password += 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]; // 1 majuscule
+  password += 'abcdefghijkmnpqrstuvwxyz'[Math.floor(Math.random() * 23)]; // 1 minuscule
+  password += '23456789'[Math.floor(Math.random() * 8)]; // 1 chiffre
+  
+  for (let i = 0; i < 5; i++) {
+    password += chars[Math.floor(Math.random() * chars.length)];
+  }
+  
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+};
+
+// 🔐 CRÉATION DU PREMIER SUPERADMIN (route sécurisée)
+exports.createSuperAdmin = async (req, res) => {
+  const { nom, prenom, email, motDePasse, confirmMotDePasse, secretKey } = req.body;
+
+  // Vérification de la clé secrète (à définir dans .env)
+  if (secretKey !== process.env.SUPERADMIN_SECRET_KEY) {
+    return res.status(403).json({ 
+      message: "Clé secrète invalide" 
+    });
+  }
 
   // Validation des champs
   if (!nom || !prenom || !email || !motDePasse) {
@@ -50,11 +72,323 @@ exports.register = async (req, res) => {
     });
   }
 
-  // Validation du rôle
-  const validRoles = ['ADMIN', 'SURVEILLANT', 'ETUDIANT'];
-  if (!validRoles.includes(role)) {
+  try {
+    // Vérifier qu'il n'existe pas déjà de SUPERADMIN
+    const [existingSuperAdmin] = await db.promise().query(
+      "SELECT idUtilisateur FROM utilisateur WHERE role = 'SUPERADMIN'", 
+    );
+
+    if (existingSuperAdmin.length > 0) {
+      return res.status(409).json({ 
+        message: "Un SUPERADMIN existe déjà dans le système" 
+      });
+    }
+
+    // Vérifier si l'email existe déjà
+    const [existing] = await db.promise().query(
+      "SELECT idUtilisateur FROM utilisateur WHERE email = ?", 
+      [email]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({ 
+        message: "Cet email est déjà utilisé" 
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(motDePasse, 12);
+
+    const sql = `
+      INSERT INTO utilisateur (nom, prenom, email, motDePasse, role)
+      VALUES (?, ?, ?, ?, 'SUPERADMIN')
+    `;
+
+    const [result] = await db.promise().query(sql, [
+      nom.trim(), 
+      prenom.trim(), 
+      email.toLowerCase().trim(), 
+      hashedPassword
+    ]);
+
+    const token = generateToken({
+      idUtilisateur: result.insertId,
+      role: 'SUPERADMIN'
+    });
+
+    res.status(201).json({ 
+      message: "SUPERADMIN créé avec succès",
+      token,
+      user: {
+        id: result.insertId,
+        nom: nom.trim(),
+        prenom: prenom.trim(),
+        email: email.toLowerCase().trim(),
+        role: 'SUPERADMIN'
+      }
+    });
+  } catch (error) {
+    console.error("Erreur création SUPERADMIN:", error);
+    res.status(500).json({ 
+      message: "Erreur lors de la création du SUPERADMIN",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// 👤 SUPERADMIN CRÉE UN ADMIN
+exports.createAdmin = async (req, res) => {
+  const { nom, prenom, email, idUfr } = req.body;
+
+  // Vérifier que l'utilisateur connecté est SUPERADMIN
+  if (req.user.role !== 'SUPERADMIN') {
+    return res.status(403).json({ 
+      message: "Seul le SUPERADMIN peut créer des administrateurs" 
+    });
+  }
+
+  // Validation des champs
+  if (!nom || !prenom || !email || !idUfr) {
     return res.status(400).json({ 
-      message: "Rôle invalide. Les rôles valides sont: ADMIN, SURVEILLANT, ETUDIANT" 
+      message: "Tous les champs sont obligatoires (nom, prenom, email, idUfr)" 
+    });
+  }
+
+  if (!validateEmail(email)) {
+    return res.status(400).json({ 
+      message: "Email invalide" 
+    });
+  }
+
+  try {
+    // Vérifier que l'UFR existe
+    const [ufrExists] = await db.promise().query(
+      "SELECT id FROM ufr WHERE id = ?", 
+      [idUfr]
+    );
+
+    if (ufrExists.length === 0) {
+      return res.status(404).json({ 
+        message: "UFR introuvable" 
+      });
+    }
+
+    // Vérifier si l'email existe déjà
+    const [existing] = await db.promise().query(
+      "SELECT idUtilisateur FROM utilisateur WHERE email = ?", 
+      [email]
+    );
+
+    if (existing.length > 0) {
+      return res.status(409).json({ 
+        message: "Cet email est déjà utilisé" 
+      });
+    }
+
+    // Générer un mot de passe par défaut
+    const defaultPassword = generateDefaultPassword();
+    const hashedPassword = await bcrypt.hash(defaultPassword, 12);
+
+    // Créer l'utilisateur ADMIN
+    const sqlUser = `
+      INSERT INTO utilisateur (nom, prenom, email, motDePasse, role)
+      VALUES (?, ?, ?, ?, 'ADMIN')
+    `;
+
+    const [resultUser] = await db.promise().query(sqlUser, [
+      nom.trim(), 
+      prenom.trim(), 
+      email.toLowerCase().trim(), 
+      hashedPassword
+    ]);
+
+    const idUtilisateur = resultUser.insertId;
+
+    // Créer l'entrée dans la table administrateur
+    const sqlAdmin = `
+      INSERT INTO administrateur (idUtilisateur, idUfr)
+      VALUES (?, ?)
+    `;
+
+    await db.promise().query(sqlAdmin, [idUtilisateur, idUfr]);
+
+    // 📧 ENVOI EMAIL AVEC IDENTIFIANTS
+    const userName = `${prenom.trim()} ${nom.trim()}`;
+    sendAdminCredentialsEmail(email.toLowerCase().trim(), userName, email.toLowerCase().trim(), defaultPassword)
+      .then((result) => {
+        if (result.success) {
+          console.log('✅ Email d\'identifiants envoyé à:', email);
+        } else {
+          console.log('⚠️ Échec envoi email d\'identifiants:', result.error);
+        }
+      })
+      .catch((error) => {
+        console.error('❌ Erreur email d\'identifiants:', error);
+      });
+
+    const response = {
+      message: "Administrateur créé avec succès",
+      user: {
+        id: idUtilisateur,
+        nom: nom.trim(),
+        prenom: prenom.trim(),
+        email: email.toLowerCase().trim(),
+        role: 'ADMIN',
+        idUfr: idUfr
+      }
+    };
+
+    // En développement, renvoyer le mot de passe
+    if (process.env.NODE_ENV === 'development') {
+      response.defaultPassword = defaultPassword;
+    }
+
+    res.status(201).json(response);
+  } catch (error) {
+    console.error("Erreur création admin:", error);
+    res.status(500).json({ 
+      message: "Erreur lors de la création de l'administrateur",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// 🎓 ADMIN CRÉE UN ÉTUDIANT
+exports.createEtudiant = async (req, res) => {
+  const { nom, prenom, email, codeEtudiant } = req.body;
+
+  // Vérifier que l'utilisateur connecté est ADMIN
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ 
+      message: "Seul un administrateur peut créer des étudiants" 
+    });
+  }
+
+  // Validation des champs
+  if (!nom || !prenom || !email || !codeEtudiant) {
+    return res.status(400).json({ 
+      message: "Tous les champs sont obligatoires (nom, prenom, email, codeEtudiant)" 
+    });
+  }
+
+  if (!validateEmail(email)) {
+    return res.status(400).json({ 
+      message: "Email invalide" 
+    });
+  }
+
+  try {
+    // Récupérer l'idUfr de l'admin connecté
+    const [adminInfo] = await db.promise().query(
+      "SELECT idUfr FROM administrateur WHERE idUtilisateur = ?", 
+      [req.user.id]
+    );
+
+    if (adminInfo.length === 0) {
+      return res.status(404).json({ 
+        message: "Informations administrateur introuvables" 
+      });
+    }
+
+    const idUfr = adminInfo[0].idUfr;
+
+    // Vérifier si l'email existe déjà
+    const [existingEmail] = await db.promise().query(
+      "SELECT idUtilisateur FROM utilisateur WHERE email = ?", 
+      [email]
+    );
+
+    if (existingEmail.length > 0) {
+      return res.status(409).json({ 
+        message: "Cet email est déjà utilisé" 
+      });
+    }
+
+    // Vérifier si le codeEtudiant existe déjà
+    const [existingCode] = await db.promise().query(
+      "SELECT id FROM etudiant WHERE codeEtudiant = ?", 
+      [codeEtudiant]
+    );
+
+    if (existingCode.length > 0) {
+      return res.status(409).json({ 
+        message: "Ce code étudiant est déjà utilisé" 
+      });
+    }
+
+    // Générer un mot de passe par défaut (pour éviter de fatiguer l'admin)
+    const defaultPassword = generateDefaultPassword();
+    const hashedPassword = await bcrypt.hash(defaultPassword, 12);
+
+    // Créer l'utilisateur ETUDIANT
+    const sqlUser = `
+      INSERT INTO utilisateur (nom, prenom, email, motDePasse, role)
+      VALUES (?, ?, ?, ?, 'ETUDIANT')
+    `;
+
+    const [resultUser] = await db.promise().query(sqlUser, [
+      nom.trim(), 
+      prenom.trim(), 
+      email.toLowerCase().trim(), 
+      hashedPassword
+    ]);
+
+    const idUtilisateur = resultUser.insertId;
+
+    // Créer l'entrée dans la table etudiant
+    const sqlEtudiant = `
+      INSERT INTO etudiant (codeEtudiant, idUtilisateur, idUfr)
+      VALUES (?, ?, ?)
+    `;
+
+    await db.promise().query(sqlEtudiant, [codeEtudiant.trim(), idUtilisateur, idUfr]);
+
+    res.status(201).json({
+      message: "Étudiant créé avec succès",
+      user: {
+        id: idUtilisateur,
+        nom: nom.trim(),
+        prenom: prenom.trim(),
+        email: email.toLowerCase().trim(),
+        role: 'ETUDIANT',
+        codeEtudiant: codeEtudiant.trim(),
+        idUfr: idUfr
+      }
+    });
+  } catch (error) {
+    console.error("Erreur création étudiant:", error);
+    res.status(500).json({ 
+      message: "Erreur lors de la création de l'étudiant",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// 📝 INSCRIPTION (SURVEILLANT UNIQUEMENT)
+exports.register = async (req, res) => {
+  const { nom, prenom, email, motDePasse, confirmMotDePasse } = req.body;
+
+  // Validation des champs
+  if (!nom || !prenom || !email || !motDePasse) {
+    return res.status(400).json({ 
+      message: "Tous les champs sont obligatoires" 
+    });
+  }
+
+  if (!validateEmail(email)) {
+    return res.status(400).json({ 
+      message: "Email invalide" 
+    });
+  }
+
+  if (!validatePassword(motDePasse)) {
+    return res.status(400).json({ 
+      message: "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre" 
+    });
+  }
+
+  if (motDePasse !== confirmMotDePasse) {
+    return res.status(400).json({ 
+      message: "Les mots de passe ne correspondent pas" 
     });
   }
 
@@ -73,23 +407,33 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(motDePasse, 12);
 
-    const sql = `
+    // Créer l'utilisateur SURVEILLANT
+    const sqlUser = `
       INSERT INTO utilisateur (nom, prenom, email, motDePasse, role)
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, 'SURVEILLANT')
     `;
 
-    const [result] = await db.promise().query(sql, [
+    const [resultUser] = await db.promise().query(sqlUser, [
       nom.trim(), 
       prenom.trim(), 
       email.toLowerCase().trim(), 
-      hashedPassword, 
-      role
+      hashedPassword
     ]);
+
+    const idUtilisateur = resultUser.insertId;
+
+    // Créer l'entrée dans la table surveillant
+    const sqlSurveillant = `
+      INSERT INTO surveillant (idUtilisateur)
+      VALUES (?)
+    `;
+
+    await db.promise().query(sqlSurveillant, [idUtilisateur]);
 
     // Générer un token pour connexion automatique après inscription
     const user = {
-      idUtilisateur: result.insertId,
-      role: role
+      idUtilisateur: idUtilisateur,
+      role: 'SURVEILLANT'
     };
     const token = generateToken(user);
 
@@ -108,14 +452,14 @@ exports.register = async (req, res) => {
       });
 
     res.status(201).json({ 
-      message: "Compte créé avec succès",
+      message: "Compte surveillant créé avec succès",
       token,
       user: {
-        id: result.insertId,
+        id: idUtilisateur,
         nom: nom.trim(),
         prenom: prenom.trim(),
         email: email.toLowerCase().trim(),
-        role: role
+        role: 'SURVEILLANT'
       }
     });
   } catch (error) {
@@ -127,7 +471,7 @@ exports.register = async (req, res) => {
   }
 };
 
-// 🔐 CONNEXION
+// 🔓 CONNEXION
 exports.login = async (req, res) => {
   const { email, motDePasse } = req.body;
 
@@ -150,6 +494,13 @@ exports.login = async (req, res) => {
     }
 
     const user = rows[0];
+
+    // Vérifier que ce n'est pas un ETUDIANT qui tente de se connecter
+    if (user.role === 'ETUDIANT') {
+      return res.status(403).json({ 
+        message: "Les étudiants ne peuvent pas se connecter à cette interface" 
+      });
+    }
 
     // Vérifier si le compte est actif
     if (!user.actif) {
@@ -326,6 +677,13 @@ exports.forgotPassword = async (req, res) => {
 
     const user = rows[0];
 
+    // Les étudiants ne peuvent pas réinitialiser leur mot de passe
+    if (user.role === 'ETUDIANT') {
+      return res.json({
+        message: "Si cet email existe, un lien de réinitialisation a été envoyé"
+      });
+    }
+
     // Vérifier si le compte est actif
     if (!user.actif) {
       return res.json({
@@ -347,11 +705,11 @@ exports.forgotPassword = async (req, res) => {
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-    // 📧 ENVOI EMAIL DE RÉINITIALISATION (bloquant pour s'assurer qu'il est envoyé)
+    // 📧 ENVOI EMAIL DE RÉINITIALISATION
     const userName = `${user.prenom} ${user.nom}`;
     
     try {
-      const emailResult = await sendResetEmail(user.email, userName, resetUrl);
+      await sendResetEmail(user.email, userName, resetUrl);
       
       console.log('✅ Email de réinitialisation envoyé à:', user.email);
       
@@ -359,7 +717,6 @@ exports.forgotPassword = async (req, res) => {
         message: "Si cet email existe, un lien de réinitialisation a été envoyé"
       };
 
-      // En développement, renvoyer le token et l'URL pour faciliter les tests
       if (process.env.NODE_ENV === 'development') {
         response.resetToken = resetToken;
         response.resetUrl = resetUrl;
@@ -369,7 +726,6 @@ exports.forgotPassword = async (req, res) => {
     } catch (emailError) {
       console.error('❌ Erreur envoi email de réinitialisation:', emailError);
       
-      // Supprimer le token de la BDD si l'email n'a pas pu être envoyé
       await db.promise().query(
         `UPDATE utilisateur 
          SET resetToken = NULL, resetTokenExpire = NULL 
@@ -475,7 +831,7 @@ exports.resetPassword = async (req, res) => {
     sendPasswordChangedEmail(user.email, userName)
       .then((result) => {
         if (result.success) {
-          console.log('✅ Email de confirmation envoyé à:', user.email);
+          console.log('✅ Email de confirmation envoyé à :', user.email);
         } else {
           console.log('⚠️ Échec envoi email de confirmation:', result.error);
         }
@@ -490,12 +846,13 @@ exports.resetPassword = async (req, res) => {
   } catch (error) {
     console.error("Erreur réinitialisation:", error);
     res.status(500).json({ 
-      message: "Erreur lors de la réinitialisation du mot de passe" 
+      message: "Erreur lors de la réinitialisation du mot de passe",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
 
-// ✏️ MODIFIER INFORMATIONS
+// ✏️ MODIFIER INFORMATIONS DU PROFIL
 exports.updateProfile = async (req, res) => {
   const { nom, prenom, email } = req.body;
   const userId = req.user.id;
@@ -513,6 +870,7 @@ exports.updateProfile = async (req, res) => {
   }
 
   try {
+    // Vérifier si l'email est déjà utilisé par un autre utilisateur
     const [existing] = await db.promise().query(
       "SELECT idUtilisateur FROM utilisateur WHERE email = ? AND idUtilisateur != ?",
       [email.toLowerCase().trim(), userId]
@@ -524,6 +882,7 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
+    // Mettre à jour le profil
     await db.promise().query(
       `UPDATE utilisateur 
        SET nom = ?, prenom = ?, email = ?
@@ -542,85 +901,8 @@ exports.updateProfile = async (req, res) => {
   } catch (error) {
     console.error("Erreur mise à jour profil:", error);
     res.status(500).json({ 
-      message: "Erreur lors de la mise à jour du profil" 
-    });
-  }
-};
-
-// 🗑️ SUPPRIMER COMPTE
-exports.deleteAccount = async (req, res) => {
-  const { motDePasse } = req.body;
-  const userId = req.user.id;
-
-  if (!motDePasse) {
-    return res.status(400).json({ 
-      message: "Mot de passe requis pour confirmer la suppression" 
-    });
-  }
-
-  try {
-    const [rows] = await db.promise().query(
-      "SELECT motDePasse FROM utilisateur WHERE idUtilisateur = ?",
-      [userId]
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ 
-        message: "Utilisateur introuvable" 
-      });
-    }
-
-    const isMatch = await bcrypt.compare(motDePasse, rows[0].motDePasse);
-
-    if (!isMatch) {
-      return res.status(401).json({ 
-        message: "Mot de passe incorrect" 
-      });
-    }
-
-    // Soft delete : désactiver le compte au lieu de le supprimer
-    await db.promise().query(
-      "UPDATE utilisateur SET actif = 0 WHERE idUtilisateur = ?", 
-      [userId]
-    );
-
-    res.json({ 
-      message: "Compte désactivé avec succès" 
-    });
-  } catch (error) {
-    console.error("Erreur suppression compte:", error);
-    res.status(500).json({ 
-      message: "Erreur lors de la suppression du compte" 
-    });
-  }
-};
-
-// 🔄 RAFRAÎCHIR TOKEN
-exports.refreshToken = async (req, res) => {
-  const userId = req.user.id;
-
-  try {
-    const [rows] = await db.promise().query(
-      "SELECT idUtilisateur, role FROM utilisateur WHERE idUtilisateur = ? AND actif = 1",
-      [userId]
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ 
-        message: "Utilisateur introuvable ou inactif" 
-      });
-    }
-
-    const newToken = generateToken(rows[0]);
-
-    res.json({
-      message: "Token rafraîchi avec succès",
-      token: newToken
-    });
-  } catch (error) {
-    console.error("Erreur rafraîchissement token:", error);
-    res.status(500).json({ 
-      message: "Erreur lors du rafraîchissement du token" 
+      message: "Erreur lors de la mise à jour du profil",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

@@ -9,7 +9,7 @@ const Utilisateur = {
         prenom VARCHAR(100),
         email VARCHAR(150) UNIQUE,
         motDePasse VARCHAR(255),
-        role ENUM('ADMIN', 'SURVEILLANT', 'ETUDIANT') NOT NULL,
+        role ENUM('SUPERADMIN', 'ADMIN', 'SURVEILLANT', 'ETUDIANT') NOT NULL,
         resetToken VARCHAR(500) DEFAULT NULL,
         resetTokenExpire DATETIME DEFAULT NULL,
         actif BOOLEAN DEFAULT 1,

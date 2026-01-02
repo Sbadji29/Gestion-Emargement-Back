@@ -7,9 +7,164 @@ const roleMiddleware = require("../middleware/role.middleware");
 
 /**
  * @swagger
+ * /api/auth/create-superadmin:
+ *   post:
+ *     summary: Créer le premier SUPERADMIN (route sécurisée)
+ *     tags: [SuperAdmin]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - nom
+ *               - prenom
+ *               - email
+ *               - motDePasse
+ *               - confirmMotDePasse
+ *               - secretKey
+ *             properties:
+ *               nom:
+ *                 type: string
+ *                 example: Fall
+ *               prenom:
+ *                 type: string
+ *                 example: Moussa
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: superadmin@ucad.sn
+ *               motDePasse:
+ *                 type: string
+ *                 format: password
+ *                 example: SuperAdmin123
+ *               confirmMotDePasse:
+ *                 type: string
+ *                 format: password
+ *                 example: SuperAdmin123
+ *               secretKey:
+ *                 type: string
+ *                 example: votre_cle_secrete_tres_securisee
+ *                 description: Clé secrète définie dans .env (SUPERADMIN_SECRET_KEY)
+ *     responses:
+ *       201:
+ *         description: SUPERADMIN créé avec succès
+ *       400:
+ *         description: Validation échouée
+ *       403:
+ *         description: Clé secrète invalide
+ *       409:
+ *         description: Un SUPERADMIN existe déjà
+ *       500:
+ *         description: Erreur serveur
+ */
+router.post("/create-superadmin", authController.createSuperAdmin);
+
+/**
+ * @swagger
+ * /api/auth/create-admin:
+ *   post:
+ *     summary: SUPERADMIN crée un administrateur
+ *     tags: [SuperAdmin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - nom
+ *               - prenom
+ *               - email
+ *               - idUfr
+ *             properties:
+ *               nom:
+ *                 type: string
+ *                 example: Diop
+ *               prenom:
+ *                 type: string
+ *                 example: Amadou
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: admin.diop@ucad.sn
+ *               idUfr:
+ *                 type: integer
+ *                 example: 1
+ *                 description: ID de l'UFR que l'admin va gérer
+ *     responses:
+ *       201:
+ *         description: Administrateur créé avec succès (mot de passe envoyé par email)
+ *       400:
+ *         description: Validation échouée
+ *       403:
+ *         description: Seul SUPERADMIN peut créer des admins
+ *       404:
+ *         description: UFR introuvable
+ *       409:
+ *         description: Email déjà utilisé
+ *       500:
+ *         description: Erreur serveur
+ */
+router.post("/create-admin", authMiddleware, authController.createAdmin);
+
+/**
+ * @swagger
+ * /api/auth/create-etudiant:
+ *   post:
+ *     summary: ADMIN crée un étudiant
+ *     tags: [Administration]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - nom
+ *               - prenom
+ *               - email
+ *               - codeEtudiant
+ *             properties:
+ *               nom:
+ *                 type: string
+ *                 example: Seck
+ *               prenom:
+ *                 type: string
+ *                 example: Fatou
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: fatou.seck@esp.sn
+ *               codeEtudiant:
+ *                 type: string
+ *                 example: ESP20240001
+ *                 description: Code unique de l'étudiant
+ *     responses:
+ *       201:
+ *         description: Étudiant créé avec succès
+ *       400:
+ *         description: Validation échouée
+ *       403:
+ *         description: Seul ADMIN peut créer des étudiants
+ *       409:
+ *         description: Email ou codeEtudiant déjà utilisé
+ *       500:
+ *         description: Erreur serveur
+ */
+router.post("/create-etudiant", authMiddleware, authController.createEtudiant);
+
+/**
+ * @swagger
  * /api/auth/register:
  *   post:
- *     summary: Inscription d'un nouvel utilisateur
+ *     summary: Inscription d'un surveillant
  *     tags: [Authentification]
  *     security: []
  *     requestBody:
@@ -27,14 +182,14 @@ const roleMiddleware = require("../middleware/role.middleware");
  *             properties:
  *               nom:
  *                 type: string
- *                 example: Diop
+ *                 example: Ndiaye
  *               prenom:
  *                 type: string
- *                 example: Amadou
+ *                 example: Ibrahima
  *               email:
  *                 type: string
  *                 format: email
- *                 example: amadou.diop@example.com
+ *                 example: ibrahima.ndiaye@ucad.sn
  *               motDePasse:
  *                 type: string
  *                 format: password
@@ -45,27 +200,11 @@ const roleMiddleware = require("../middleware/role.middleware");
  *                 type: string
  *                 format: password
  *                 example: Password123
- *               role:
- *                 type: string
- *                 enum: [ADMIN, SURVEILLANT, ETUDIANT]
- *                 default: ETUDIANT
- *                 example: ETUDIANT
  *     responses:
  *       201:
- *         description: Compte créé avec succès
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 token:
- *                   type: string
- *                 user:
- *                   $ref: '#/components/schemas/User'
+ *         description: Compte surveillant créé avec succès
  *       400:
- *         $ref: '#/components/responses/ValidationError'
+ *         description: Validation échouée
  *       409:
  *         description: Email déjà utilisé
  *       500:
@@ -77,7 +216,8 @@ router.post("/register", authController.register);
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Connexion d'un utilisateur
+ *     summary: Connexion (SUPERADMIN, ADMIN, SURVEILLANT uniquement)
+ *     description: Les étudiants ne peuvent pas se connecter à cette interface
  *     tags: [Authentification]
  *     security: []
  *     requestBody:
@@ -93,7 +233,7 @@ router.post("/register", authController.register);
  *               email:
  *                 type: string
  *                 format: email
- *                 example: amadou.diop@example.com
+ *                 example: admin.diop@ucad.sn
  *               motDePasse:
  *                 type: string
  *                 format: password
@@ -101,22 +241,12 @@ router.post("/register", authController.register);
  *     responses:
  *       200:
  *         description: Connexion réussie
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 token:
- *                   type: string
- *                   description: Token JWT pour l'authentification
- *                 user:
- *                   $ref: '#/components/schemas/User'
  *       400:
- *         $ref: '#/components/responses/ValidationError'
+ *         description: Validation échouée
  *       401:
  *         description: Email ou mot de passe incorrect
+ *       403:
+ *         description: Compte désactivé ou étudiant tentant de se connecter
  *       500:
  *         description: Erreur serveur
  */
@@ -133,17 +263,8 @@ router.post("/login", authController.login);
  *     responses:
  *       200:
  *         description: Profil utilisateur
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 user:
- *                   $ref: '#/components/schemas/User'
  *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
+ *         description: Non autorisé
  *       404:
  *         description: Utilisateur introuvable
  *       500:
@@ -178,7 +299,6 @@ router.get("/profile", authMiddleware, authController.profile);
  *                 type: string
  *                 format: password
  *                 example: NewPassword123
- *                 description: Doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre
  *               confirmNewPassword:
  *                 type: string
  *                 format: password
@@ -187,9 +307,9 @@ router.get("/profile", authMiddleware, authController.profile);
  *       200:
  *         description: Mot de passe modifié avec succès
  *       400:
- *         $ref: '#/components/responses/ValidationError'
+ *         description: Validation échouée
  *       401:
- *         description: Ancien mot de passe incorrect ou non autorisé
+ *         description: Ancien mot de passe incorrect
  *       404:
  *         description: Utilisateur introuvable
  *       500:
@@ -202,6 +322,7 @@ router.put("/change-password", authMiddleware, authController.changePassword);
  * /api/auth/forgot-password:
  *   post:
  *     summary: Demander un lien de réinitialisation de mot de passe
+ *     description: Les étudiants ne peuvent pas réinitialiser leur mot de passe
  *     tags: [Authentification]
  *     security: []
  *     requestBody:
@@ -216,25 +337,12 @@ router.put("/change-password", authMiddleware, authController.changePassword);
  *               email:
  *                 type: string
  *                 format: email
- *                 example: amadou.diop@example.com
+ *                 example: admin.diop@ucad.sn
  *     responses:
  *       200:
  *         description: Email de réinitialisation envoyé (si l'email existe)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 resetToken:
- *                   type: string
- *                   description: Token affiché uniquement en développement
- *                 resetUrl:
- *                   type: string
- *                   description: URL de réinitialisation affichée uniquement en développement
  *       400:
- *         $ref: '#/components/responses/ValidationError'
+ *         description: Validation échouée
  *       500:
  *         description: Erreur serveur
  */
@@ -265,7 +373,6 @@ router.post("/forgot-password", authController.forgotPassword);
  *                 type: string
  *                 format: password
  *                 example: NewPassword123
- *                 description: Doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre
  *               confirmNewPassword:
  *                 type: string
  *                 format: password
@@ -274,7 +381,7 @@ router.post("/forgot-password", authController.forgotPassword);
  *       200:
  *         description: Mot de passe réinitialisé avec succès
  *       400:
- *         description: Token invalide, expiré ou mots de passe non conformes
+ *         description: Token invalide ou mots de passe non conformes
  *       500:
  *         description: Erreur serveur
  */
@@ -308,32 +415,16 @@ router.post("/reset-password", authController.resetPassword);
  *               email:
  *                 type: string
  *                 format: email
- *                 example: amadou.diop@example.com
+ *                 example: amadou.diop@ucad.sn
  *     responses:
  *       200:
  *         description: Profil mis à jour avec succès
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 user:
- *                   type: object
- *                   properties:
- *                     nom:
- *                       type: string
- *                     prenom:
- *                       type: string
- *                     email:
- *                       type: string
  *       400:
- *         $ref: '#/components/responses/ValidationError'
+ *         description: Validation échouée
  *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
+ *         description: Non autorisé
  *       409:
- *         description: Email déjà utilisé par un autre compte
+ *         description: Email déjà utilisé
  *       500:
  *         description: Erreur serveur
  */
@@ -341,61 +432,17 @@ router.put("/update-profile", authMiddleware, authController.updateProfile);
 
 /**
  * @swagger
- * /api/auth/admin:
- *   get:
- *     summary: Route exemple réservée aux administrateurs
- *     tags: [Administration]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Accès autorisé
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Bienvenue ADMIN
- *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
- *       403:
- *         description: Accès interdit - Rôle insuffisant
- *       500:
- *         description: Erreur serveur
- */
-router.get(
-  "/admin",
-  authMiddleware,
-  roleMiddleware("ADMIN"),
-  (req, res) => {
-    res.json({ message: "Bienvenue ADMIN" });
-  }
-);
-
-/**
- * @swagger
  * /api/auth/logout:
  *   post:
  *     summary: Déconnexion de l'utilisateur
- *     description: Déconnecte l'utilisateur. Le token doit être supprimé côté client.
  *     tags: [Authentification]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Déconnexion réussie
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Déconnexion réussie. Supprimez le token côté client.
  *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
+ *         description: Non autorisé
  *       500:
  *         description: Erreur serveur
  */
