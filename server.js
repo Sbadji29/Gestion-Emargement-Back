@@ -17,7 +17,10 @@ const FeuillePresence = require("./models/feuillePresence.model");
 const AppelCandidature = require("./models/appelCandidature.model");
 const Notification = require("./models/notification.model");
 const Classe = require("./models/classe.model");
-
+const Section = require("./models/Section.model");
+const Inscription = require("./models/inscription.model");
+const InscriptionMatiere = require("./models/inscriptionMatiere.model");
+const Annee = require("./models/anneeAcademique.model");
 const app = express();
 
 // Middlewares
@@ -43,11 +46,18 @@ app.get("/", (req, res) => {
 
 const authRoutes = require("./routes/auth.route");
 const ufrRoutes= require("./routes/ufr.route");
+const anneeAcademiqueRoutes = require("./routes/anneeAcademique.routes");
+const matiereRoutes = require("./routes/matiere.routes");
+const inscriptionRoutes = require("./routes/inscription.routes");
+const classeRoutes = require('./routes/classe.route');
 // Initialisation de la base de données
 async function initDatabase() {
   try {
     await UFR.createTable();
     await Utilisateur.createTable();
+    await Classe.createTable();
+    await Annee.createTable();
+    await Section.createTable();
     await Etudiant.createTable();
     await Surveillant.createTable();
     await Administrateur.createTable();
@@ -59,7 +69,9 @@ async function initDatabase() {
     await FeuillePresence.createTable();
     await AppelCandidature.createTable();
     await Notification.createTable();
-    await Classe.createTable();
+    await Inscription.createTable();
+    await InscriptionMatiere.createTable();
+    
 
     console.log("Toutes les tables MySQL ont été créées avec succès");
   } catch (error) {
@@ -71,6 +83,10 @@ async function initDatabase() {
 const PORT = process.env.PORT || 3000;
 app.use("/api/auth", authRoutes);
 app.use("/api/ufr", ufrRoutes);
+app.use("/api/annees-academiques", anneeAcademiqueRoutes);
+app.use("/api/matieres", matiereRoutes);
+app.use("/api/inscriptions", inscriptionRoutes);
+app.use('/api/classes', classeRoutes);
 
 app.listen(PORT, async () => {
   console.log(`Serveur démarré sur http://localhost:${PORT}`);
