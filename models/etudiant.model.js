@@ -7,12 +7,13 @@ const Etudiant = {
         id INT AUTO_INCREMENT PRIMARY KEY,
         codeEtudiant VARCHAR(50) UNIQUE,
         idClasse INT,
-        section VARCHAR(255) DEFAULT NULL,
+        idsection INT,
         idUtilisateur INT,
         idUfr INT,
         FOREIGN KEY (idUtilisateur) REFERENCES utilisateur(idUtilisateur),
         FOREIGN KEY (idUfr) REFERENCES ufr(id),
-        FOREIGN KEY (idClasse) REFERENCES classe(id)
+        FOREIGN KEY (idClasse) REFERENCES classe(id),
+        FOREIGN KEY (idSection) REFERENCES section(id)
       )
     `;
     return db.promise().query(sql);
