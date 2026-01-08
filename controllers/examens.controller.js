@@ -1,5 +1,5 @@
 // controllers/examens.controller.js
-const db = require('../config/db.config');
+const db = require('../config/db');
 
 /**
  * US-EX1 : Créer un examen

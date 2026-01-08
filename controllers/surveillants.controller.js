@@ -1,5 +1,5 @@
 // controllers/surveillants.controller.js
-const db = require('../config/db.config');
+const db = require('../config/db');
 const bcrypt = require('bcrypt');
 
 /**

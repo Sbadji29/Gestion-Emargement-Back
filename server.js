@@ -50,6 +50,14 @@ const anneeAcademiqueRoutes = require("./routes/anneeAcademique.routes");
 const matiereRoutes = require("./routes/matiere.routes");
 const inscriptionRoutes = require("./routes/inscription.routes");
 const classeRoutes = require('./routes/classe.route');
+const utilisateursRoutes = require('./routes/utilisateurs.routes');
+const etudiantsRoutes = require('./routes/etudiants.routes');
+const surveillantsRoutes = require('./routes/surveillants.routes');
+const sallesRoutes = require('./routes/salles.routes');
+const sectionsRoutes = require('./routes/sections.routes');
+const examensRoutes = require('./routes/examens.routes');
+const sessionsRoutes= require('./routes/sessions.routes');
+
 // Initialisation de la base de données
 async function initDatabase() {
   try {
@@ -87,6 +95,13 @@ app.use("/api/annees-academiques", anneeAcademiqueRoutes);
 app.use("/api/matieres", matiereRoutes);
 app.use("/api/inscriptions", inscriptionRoutes);
 app.use('/api/classes', classeRoutes);
+app.use('/api/utilisateurs', utilisateursRoutes);
+app.use('/api/etudiants', etudiantsRoutes);
+app.use('/api/surveillants', surveillantsRoutes);
+app.use('/api/salles', sallesRoutes);
+app.use('/api/sections', sectionsRoutes);
+app.use('/api/sessions', sessionsRoutes);
+app.use('/api/examens', examensRoutes);
 
 app.listen(PORT, async () => {
   console.log(`Serveur démarré sur http://localhost:${PORT}`);

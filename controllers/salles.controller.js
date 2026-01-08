@@ -1,5 +1,5 @@
 // controllers/salles.controller.js
-const db = require('../config/db.config');
+const db = require('../config/db');
 
 /**
  * US-SA1 : Créer une salle

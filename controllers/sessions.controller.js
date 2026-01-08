@@ -1,5 +1,5 @@
 // controllers/sessions.controller.js
-const db = require('../config/db.config');
+const db = require('../config/db');
 
 /**
  * US-EX2 : Créer une session d'examen (IMPORTANT)

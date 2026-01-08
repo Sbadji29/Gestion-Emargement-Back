@@ -1,5 +1,5 @@
 // controllers/sections.controller.js
-const db = require('../config/db.config');
+const db = require('../config/db');
 
 /**
  * US-SE1 : Créer une section

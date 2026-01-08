@@ -1,5 +1,5 @@
 // controllers/utilisateurs.controller.js
-const db = require('../config/db.config');
+const db = require('../config/db');
 
 /**
  * US-U1 : Récupérer un utilisateur par ID
