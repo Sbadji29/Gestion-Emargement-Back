@@ -16,7 +16,7 @@ exports.create = async (req, res) => {
     }
 
     // Vérifier que l'UFR existe
-    const [ufr] = await db.query(
+    const [ufr] = await db.promise().query(
       'SELECT id FROM ufr WHERE id = ?',
       [idUfr]
     );
@@ -27,7 +27,7 @@ exports.create = async (req, res) => {
       });
     }
 
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       'INSERT INTO section (nomSection, idUfr) VALUES (?, ?)',
       [nomSection, idUfr]
     );
@@ -56,7 +56,7 @@ exports.create = async (req, res) => {
  */
 exports.getAll = async (req, res) => {
   try {
-    const [sections] = await db.query(
+    const [sections] = await db.promise().query(
       `SELECT 
         s.id,
         s.nomSection,
@@ -89,7 +89,7 @@ exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [sections] = await db.query(
+    const [sections] = await db.promise().query(
       `SELECT 
         s.id,
         s.nomSection,
@@ -136,7 +136,19 @@ exports.update = async (req, res) => {
       });
     }
 
-    const [result] = await db.query(
+    // Vérifier que l'UFR existe
+    const [ufr] = await db.promise().query(
+      'SELECT id FROM ufr WHERE id = ?',
+      [idUfr]
+    );
+
+    if (ufr.length === 0) {
+      return res.status(404).json({
+        message: 'UFR non trouvée'
+      });
+    }
+
+    const [result] = await db.promise().query(
       'UPDATE section SET nomSection = ?, idUfr = ? WHERE id = ?',
       [nomSection, idUfr, id]
     );
@@ -169,7 +181,7 @@ exports.delete = async (req, res) => {
     const { id } = req.params;
 
     // Vérifier si des étudiants sont dans cette section
-    const [etudiants] = await db.query(
+    const [etudiants] = await db.promise().query(
       'SELECT COUNT(*) as count FROM etudiant WHERE idSection = ?',
       [id]
     );
@@ -180,7 +192,7 @@ exports.delete = async (req, res) => {
       });
     }
 
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       'DELETE FROM section WHERE id = ?',
       [id]
     );
@@ -212,7 +224,7 @@ exports.getByUfr = async (req, res) => {
   try {
     const { idUfr } = req.params;
 
-    const [sections] = await db.query(
+    const [sections] = await db.promise().query(
       `SELECT 
         s.id,
         s.nomSection,
@@ -247,7 +259,7 @@ exports.getEtudiants = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [etudiants] = await db.query(
+    const [etudiants] = await db.promise().query(
       `SELECT 
         e.id,
         e.codeEtudiant,
@@ -283,7 +295,7 @@ exports.getEtudiants = async (req, res) => {
  */
 exports.countAll = async (req, res) => {
   try {
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       'SELECT COUNT(*) as total FROM section'
     );
 
@@ -309,7 +321,7 @@ exports.countAll = async (req, res) => {
  */
 exports.countByUfr = async (req, res) => {
   try {
-    const [results] = await db.query(
+    const [results] = await db.promise().query(
       `SELECT 
         s.idUfr,
         u.nom as nomUfr,
@@ -341,12 +353,12 @@ exports.countByUfr = async (req, res) => {
 exports.getStatistics = async (req, res) => {
   try {
     // Total sections
-    const [total] = await db.query(
+    const [total] = await db.promise().query(
       'SELECT COUNT(*) as total FROM section'
     );
 
     // Par UFR
-    const [parUfr] = await db.query(
+    const [parUfr] = await db.promise().query(
       `SELECT 
         u.nom as nomUfr,
         COUNT(*) as total
@@ -357,7 +369,7 @@ exports.getStatistics = async (req, res) => {
     );
 
     // Sections avec le plus d'étudiants
-    const [topSections] = await db.query(
+    const [topSections] = await db.promise().query(
       `SELECT 
         s.nomSection,
         COUNT(e.id) as nombreEtudiants

@@ -56,7 +56,7 @@ exports.getAllUfr = async (req, res) => {
   }
 };
 
-// 🔍 Récupérer une UFR par ID
+//  Récupérer une UFR par ID
 exports.getUfrById = async (req, res) => {
   const { id } = req.params;
 

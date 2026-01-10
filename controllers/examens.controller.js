@@ -15,10 +15,13 @@ exports.create = async (req, res) => {
       });
     }
 
-    const [result] = await db.query(
+    // Convertir la date au format MySQL
+    const mysqlDate = new Date(dateExamen).toISOString().slice(0, 19).replace('T', ' ');
+
+    const [result] = await db.promise().query(
       `INSERT INTO examen (codeExamen, dateExamen, duree, typeExamen, statut, nombrePlaces, idMatiere) 
        VALUES (?, ?, ?, ?, 'Planifie', ?, ?)`,
-      [codeExamen, dateExamen, duree, typeExamen, nombrePlaces || 0, idMatiere]
+      [codeExamen, mysqlDate, duree, typeExamen, nombrePlaces || 0, idMatiere]
     );
 
     return res.status(201).json({
@@ -48,10 +51,10 @@ exports.create = async (req, res) => {
  */
 exports.getAll = async (req, res) => {
   try {
-    const [examens] = await db.query(
+    const [examens] = await db.promise().query(
       `SELECT 
         e.*,
-        m.nomMatiere,
+        m.nom as nomMatiere,
         c.nomClasse
       FROM examen e
       LEFT JOIN matiere m ON e.idMatiere = m.id
@@ -81,10 +84,10 @@ exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [examens] = await db.query(
+    const [examens] = await db.promise().query(
       `SELECT 
         e.*,
-        m.nomMatiere,
+        m.nom as nomMatiere,
         c.nomClasse
       FROM examen e
       LEFT JOIN matiere m ON e.idMatiere = m.id
@@ -100,7 +103,7 @@ exports.getById = async (req, res) => {
     }
 
     // Récupérer les sessions associées
-    const [sessions] = await db.query(
+    const [sessions] = await db.promise().query(
       `SELECT 
         se.*,
         s.numero as salle,
@@ -141,11 +144,14 @@ exports.update = async (req, res) => {
     const { id } = req.params;
     const { codeExamen, dateExamen, duree, typeExamen, nombrePlaces, idMatiere } = req.body;
 
-    const [result] = await db.query(
+    // Convertir la date au format MySQL
+    const mysqlDate = new Date(dateExamen).toISOString().slice(0, 19).replace('T', ' ');
+
+    const [result] = await db.promise().query(
       `UPDATE examen 
        SET codeExamen = ?, dateExamen = ?, duree = ?, typeExamen = ?, nombrePlaces = ?, idMatiere = ?
        WHERE id = ?`,
-      [codeExamen, dateExamen, duree, typeExamen, nombrePlaces, idMatiere, id]
+      [codeExamen, mysqlDate, duree, typeExamen, nombrePlaces, idMatiere, id]
     );
 
     if (result.affectedRows === 0) {
@@ -172,7 +178,7 @@ exports.update = async (req, res) => {
  * DELETE /api/examens/:id
  */
 exports.delete = async (req, res) => {
-  const connection = await db.getConnection();
+  const connection = await db.promise().getConnection();
   
   try {
     const { id } = req.params;
@@ -225,7 +231,7 @@ exports.getEtudiants = async (req, res) => {
     const { id } = req.params;
 
     // Récupérer l'examen et sa matière
-    const [examen] = await db.query(
+    const [examen] = await db.promise().query(
       'SELECT idMatiere FROM examen WHERE id = ?',
       [id]
     );
@@ -237,7 +243,7 @@ exports.getEtudiants = async (req, res) => {
     }
 
     // Récupérer les étudiants inscrits à la matière
-    const [etudiants] = await db.query(
+    const [etudiants] = await db.promise().query(
       `SELECT DISTINCT
         e.id,
         e.codeEtudiant,
@@ -246,10 +252,10 @@ exports.getEtudiants = async (req, res) => {
         u.email,
         c.nomClasse
       FROM inscription_matiere im
-      INNER JOIN inscription i ON im.idInscription = i.idInscription
+      INNER JOIN inscription i ON im.idInscription = i.id
       INNER JOIN etudiant e ON i.idEtudiant = e.id
       INNER JOIN utilisateur u ON e.idUtilisateur = u.idUtilisateur
-      LEFT JOIN classe c ON e.idClasse = c.id
+      LEFT JOIN classe c ON i.idClasse = c.id
       WHERE im.idMatiere = ?
       ORDER BY u.nom, u.prenom`,
       [examen[0].idMatiere]
@@ -277,10 +283,10 @@ exports.getByDate = async (req, res) => {
   try {
     const { date } = req.params;
 
-    const [examens] = await db.query(
+    const [examens] = await db.promise().query(
       `SELECT 
         e.*,
-        m.nomMatiere,
+        m.nom as nomMatiere,
         c.nomClasse
       FROM examen e
       LEFT JOIN matiere m ON e.idMatiere = m.id
@@ -292,7 +298,7 @@ exports.getByDate = async (req, res) => {
 
     // Pour chaque examen, récupérer ses sessions
     for (let examen of examens) {
-      const [sessions] = await db.query(
+      const [sessions] = await db.promise().query(
         `SELECT 
           se.*,
           s.numero as salle,
@@ -328,7 +334,7 @@ exports.getByDate = async (req, res) => {
  * PATCH /api/examens/:id/statut
  */
 exports.updateStatut = async (req, res) => {
-  const connection = await db.getConnection();
+  const connection = await db.promise().getConnection();
   
   try {
     const { id } = req.params;
@@ -387,7 +393,7 @@ exports.updateStatut = async (req, res) => {
  */
 exports.countAll = async (req, res) => {
   try {
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       'SELECT COUNT(*) as total FROM examen'
     );
 
@@ -407,7 +413,7 @@ exports.countAll = async (req, res) => {
 
 exports.countByStatus = async (req, res) => {
   try {
-    const [results] = await db.query(
+    const [results] = await db.promise().query(
       `SELECT 
         statut,
         COUNT(*) as count
@@ -449,7 +455,7 @@ exports.countByStatus = async (req, res) => {
 exports.getStatistics = async (req, res) => {
   try {
     // Total et par statut
-    const [counts] = await db.query(
+    const [counts] = await db.promise().query(
       `SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN statut = 'Planifie' THEN 1 ELSE 0 END) as planifies,
@@ -460,7 +466,7 @@ exports.getStatistics = async (req, res) => {
     );
 
     // Par type
-    const [parType] = await db.query(
+    const [parType] = await db.promise().query(
       `SELECT 
         typeExamen,
         COUNT(*) as count
@@ -469,12 +475,12 @@ exports.getStatistics = async (req, res) => {
     );
 
     // Prochains examens (5)
-    const [prochains] = await db.query(
+    const [prochains] = await db.promise().query(
       `SELECT 
         e.codeExamen,
         e.dateExamen,
         e.typeExamen,
-        m.nomMatiere,
+        m.nom as nomMatiere,
         c.nomClasse
       FROM examen e
       LEFT JOIN matiere m ON e.idMatiere = m.id

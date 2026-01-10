@@ -217,7 +217,7 @@ exports.getAllSessions = async (req, res) => {
         e.codeExamen,
         e.typeExamen,
         e.statut as statutExamen,
-        m.nomMatiere,
+        m.nom as nomMatiere,
         c.nomClasse,
         s.numero as salle,
         s.batiment,

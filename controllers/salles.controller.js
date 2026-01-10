@@ -15,7 +15,7 @@ exports.create = async (req, res) => {
       });
     }
 
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       `INSERT INTO salle (numero, batiment, capacite, statut, type, equipements) 
        VALUES (?, ?, ?, 'Disponible', ?, ?)`,
       [numero, batiment, capacite, type || 'Salle', equipements ? JSON.stringify(equipements) : null]
@@ -48,7 +48,7 @@ exports.create = async (req, res) => {
  */
 exports.getAll = async (req, res) => {
   try {
-    const [salles] = await db.query(
+    const [salles] = await db.promise().query(
       'SELECT * FROM salle ORDER BY batiment, numero'
     );
 
@@ -74,7 +74,7 @@ exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [salles] = await db.query(
+    const [salles] = await db.promise().query(
       'SELECT * FROM salle WHERE id = ?',
       [id]
     );
@@ -108,7 +108,7 @@ exports.update = async (req, res) => {
     const { id } = req.params;
     const { numero, batiment, capacite, type, equipements } = req.body;
 
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       `UPDATE salle 
        SET numero = ?, batiment = ?, capacite = ?, type = ?, equipements = ?
        WHERE id = ?`,
@@ -150,7 +150,7 @@ exports.delete = async (req, res) => {
     const { id } = req.params;
 
     // Vérifier si la salle est utilisée dans des sessions
-    const [sessions] = await db.query(
+    const [sessions] = await db.promise().query(
       'SELECT COUNT(*) as count FROM session_examen WHERE idSalle = ?',
       [id]
     );
@@ -161,7 +161,7 @@ exports.delete = async (req, res) => {
       });
     }
 
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       'DELETE FROM salle WHERE id = ?',
       [id]
     );
@@ -191,7 +191,7 @@ exports.delete = async (req, res) => {
  */
 exports.getDisponibles = async (req, res) => {
   try {
-    const [salles] = await db.query(
+    const [salles] = await db.promise().query(
       `SELECT * FROM salle 
        WHERE statut = 'Disponible' 
        ORDER BY capacite DESC`
@@ -229,7 +229,7 @@ exports.getDisponiblesCreneau = async (req, res) => {
     const dateTimeDebut = `${date} ${heureDebut}:00`;
     const dateTimeFin = `${date} ${heureFin}:00`;
 
-    const [salles] = await db.query(
+    const [salles] = await db.promise().query(
       `SELECT s.* FROM salle s
        WHERE s.id NOT IN (
          SELECT se.idSalle FROM session_examen se
@@ -272,7 +272,7 @@ exports.getByBatiment = async (req, res) => {
   try {
     const { batiment } = req.params;
 
-    const [salles] = await db.query(
+    const [salles] = await db.promise().query(
       'SELECT * FROM salle WHERE batiment = ? ORDER BY numero',
       [batiment]
     );
@@ -299,7 +299,7 @@ exports.getByCapaciteMin = async (req, res) => {
   try {
     const { capacite } = req.params;
 
-    const [salles] = await db.query(
+    const [salles] = await db.promise().query(
       'SELECT * FROM salle WHERE capacite >= ? ORDER BY capacite ASC',
       [capacite]
     );
@@ -333,7 +333,7 @@ exports.updateStatut = async (req, res) => {
       });
     }
 
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       'UPDATE salle SET statut = ? WHERE id = ?',
       [statut, id]
     );
@@ -363,7 +363,7 @@ exports.updateStatut = async (req, res) => {
  */
 exports.countAll = async (req, res) => {
   try {
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       'SELECT COUNT(*) as total FROM salle'
     );
 
@@ -383,7 +383,7 @@ exports.countAll = async (req, res) => {
 
 exports.countDisponibles = async (req, res) => {
   try {
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       "SELECT COUNT(*) as total FROM salle WHERE statut = 'Disponible'"
     );
 
@@ -403,7 +403,7 @@ exports.countDisponibles = async (req, res) => {
 
 exports.countOccupees = async (req, res) => {
   try {
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       "SELECT COUNT(*) as total FROM salle WHERE statut = 'Occupee'"
     );
 
@@ -428,7 +428,7 @@ exports.countOccupees = async (req, res) => {
 exports.getStatistics = async (req, res) => {
   try {
     // Total et par statut
-    const [counts] = await db.query(
+    const [counts] = await db.promise().query(
       `SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN statut = 'Disponible' THEN 1 ELSE 0 END) as disponibles,
@@ -437,12 +437,12 @@ exports.getStatistics = async (req, res) => {
     );
 
     // Capacité totale
-    const [capacite] = await db.query(
+    const [capacite] = await db.promise().query(
       'SELECT SUM(capacite) as capaciteTotale FROM salle'
     );
 
     // Par type
-    const [parType] = await db.query(
+    const [parType] = await db.promise().query(
       `SELECT type, COUNT(*) as total 
        FROM salle 
        GROUP BY type`

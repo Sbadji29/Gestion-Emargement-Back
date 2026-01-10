@@ -10,7 +10,7 @@ exports.getByCode = async (req, res) => {
   try {
     const { codeEtudiant } = req.params;
 
-    const [etudiants] = await db.query(
+    const [etudiants] = await db.promise().query(
       `SELECT 
         e.id,
         e.codeEtudiant,
@@ -81,7 +81,7 @@ exports.getByCode = async (req, res) => {
  */
 exports.countAll = async (req, res) => {
   try {
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       'SELECT COUNT(*) as total FROM etudiant'
     );
 
@@ -107,7 +107,7 @@ exports.countAll = async (req, res) => {
  */
 exports.countByUfr = async (req, res) => {
   try {
-    const [results] = await db.query(
+    const [results] = await db.promise().query(
       `SELECT 
         e.idUfr,
         u.nom as nomUfr,
@@ -139,12 +139,12 @@ exports.countByUfr = async (req, res) => {
 exports.getStatistics = async (req, res) => {
   try {
     // Total étudiants
-    const [totalResult] = await db.query(
+    const [totalResult] = await db.promise().query(
       'SELECT COUNT(*) as total FROM etudiant'
     );
 
     // Par UFR
-    const [parUfr] = await db.query(
+    const [parUfr] = await db.promise().query(
       `SELECT 
         u.nom as nomUfr,
         COUNT(*) as total
@@ -155,7 +155,7 @@ exports.getStatistics = async (req, res) => {
     );
 
     // Par classe (top 10)
-    const [parClasse] = await db.query(
+    const [parClasse] = await db.promise().query(
       `SELECT 
         c.nomClasse,
         COUNT(*) as total
@@ -168,7 +168,7 @@ exports.getStatistics = async (req, res) => {
     );
 
     // Nouveaux ce mois
-    const [newThisMonth] = await db.query(
+    const [newThisMonth] = await db.promise().query(
       `SELECT COUNT(*) as count
       FROM etudiant e
       INNER JOIN utilisateur u ON e.idUtilisateur = u.idUtilisateur

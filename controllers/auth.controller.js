@@ -216,13 +216,13 @@ exports.createAdmin = async (req, res) => {
     sendAdminCredentialsEmail(email.toLowerCase().trim(), userName, email.toLowerCase().trim(), defaultPassword)
       .then((result) => {
         if (result.success) {
-          console.log('✅ Email d\'identifiants envoyé à:', email);
+          console.log(' Email d\'identifiants envoyé à:', email);
         } else {
           console.log('⚠️ Échec envoi email d\'identifiants:', result.error);
         }
       })
       .catch((error) => {
-        console.error('❌ Erreur email d\'identifiants:', error);
+        console.error(' Erreur email d\'identifiants:', error);
       });
 
     const response = {
@@ -428,13 +428,13 @@ exports.register = async (req, res) => {
     sendWelcomeEmail(email.toLowerCase().trim(), userName)
       .then((result) => {
         if (result.success) {
-          console.log('✅ Email de bienvenue envoyé à:', email);
+          console.log(' Email de bienvenue envoyé à:', email);
         } else {
           console.log('⚠️ Échec envoi email de bienvenue:', result.error);
         }
       })
       .catch((error) => {
-        console.error('❌ Erreur email de bienvenue:', error);
+        console.error(' Erreur email de bienvenue:', error);
       });
 
     res.status(201).json({ 
@@ -618,13 +618,13 @@ exports.changePassword = async (req, res) => {
     sendPasswordChangedEmail(user.email, userName)
       .then((result) => {
         if (result.success) {
-          console.log('✅ Email de confirmation envoyé à:', user.email);
+          console.log(' Email de confirmation envoyé à:', user.email);
         } else {
           console.log('⚠️ Échec envoi email de confirmation:', result.error);
         }
       })
       .catch((error) => {
-        console.error('❌ Erreur email de confirmation:', error);
+        console.error(' Erreur email de confirmation:', error);
       });
 
     res.json({ 
@@ -697,7 +697,7 @@ exports.forgotPassword = async (req, res) => {
     try {
       await sendResetEmail(user.email, userName, resetUrl);
       
-      console.log('✅ Email de réinitialisation envoyé à:', user.email);
+      console.log(' Email de réinitialisation envoyé à:', user.email);
       
       const response = {
         message: "Si cet email existe, un lien de réinitialisation a été envoyé"
@@ -710,7 +710,7 @@ exports.forgotPassword = async (req, res) => {
 
       res.json(response);
     } catch (emailError) {
-      console.error('❌ Erreur envoi email de réinitialisation:', emailError);
+      console.error(' Erreur envoi email de réinitialisation:', emailError);
       
       await db.promise().query(
         `UPDATE utilisateur 
@@ -817,13 +817,13 @@ exports.resetPassword = async (req, res) => {
     sendPasswordChangedEmail(user.email, userName)
       .then((result) => {
         if (result.success) {
-          console.log('✅ Email de confirmation envoyé à :', user.email);
+          console.log(' Email de confirmation envoyé à :', user.email);
         } else {
           console.log('⚠️ Échec envoi email de confirmation:', result.error);
         }
       })
       .catch((error) => {
-        console.error('❌ Erreur email de confirmation:', error);
+        console.error(' Erreur email de confirmation:', error);
       });
 
     res.json({ 
