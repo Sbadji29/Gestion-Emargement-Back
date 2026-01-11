@@ -385,3 +385,42 @@ exports.getStatistics = async (req, res) => {
     });
   }
 };
+
+/**
+ * Récupérer toutes les sections appartenant à l'UFR de l'admin connecté
+ * GET /api/sections/ufr/me
+ */
+exports.getByAdminUfr = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const [adminRows] = await db.query(
+      'SELECT idUfr FROM administrateur WHERE idUtilisateur = ?',
+      [userId]
+    );
+
+    if (adminRows.length === 0 || !adminRows[0].idUfr) {
+      return res.status(404).json({ message: "Administrateur ou UFR introuvable" });
+    }
+
+    const idUfr = adminRows[0].idUfr;
+
+    const [sections] = await db.query(
+      `SELECT 
+        s.id,
+        s.nomSection,
+        s.idUfr,
+        u.nom as nomUfr
+      FROM section s
+      LEFT JOIN ufr u ON s.idUfr = u.id
+      WHERE s.idUfr = ?
+      ORDER BY s.nomSection`,
+      [idUfr]
+    );
+
+    return res.status(200).json({ message: 'Sections de l\'UFR de l\'admin', data: sections });
+  } catch (error) {
+    console.error('Erreur récupération sections par UFR admin:', error);
+    return res.status(500).json({ message: 'Erreur lors de la récupération', error: error.message });
+  }
+};

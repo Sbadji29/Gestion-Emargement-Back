@@ -6,7 +6,9 @@ const Surveillant = {
       CREATE TABLE IF NOT EXISTS surveillant (
         id INT AUTO_INCREMENT PRIMARY KEY,
         idUtilisateur INT,
-        FOREIGN KEY (idUtilisateur) REFERENCES utilisateur(idUtilisateur)
+        idUfr INT DEFAULT NULL,
+        FOREIGN KEY (idUtilisateur) REFERENCES utilisateur(idUtilisateur),
+        FOREIGN KEY (idUfr) REFERENCES ufr(id) ON DELETE SET NULL
       )
     `;
     return db.promise().query(sql);

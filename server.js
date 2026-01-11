@@ -15,6 +15,7 @@ const SessionExamen = require("./models/sessionExamen.model");
 const Emargement = require("./models/emargement.model");
 const FeuillePresence = require("./models/feuillePresence.model");
 const AppelCandidature = require("./models/appelCandidature.model");
+const Candidature = require("./models/candidature.model");
 const Notification = require("./models/notification.model");
 const Classe = require("./models/classe.model");
 const Section = require("./models/Section.model");
@@ -45,11 +46,15 @@ app.get("/", (req, res) => {
 });
 
 const authRoutes = require("./routes/auth.route");
-const ufrRoutes= require("./routes/ufr.route");
+const ufrRoutes = require("./routes/ufr.route");
 const anneeAcademiqueRoutes = require("./routes/anneeAcademique.routes");
 const matiereRoutes = require("./routes/matiere.routes");
 const inscriptionRoutes = require("./routes/inscription.routes");
 const classeRoutes = require('./routes/classe.route');
+const etudiantsRoutes = require('./routes/etudiants.routes');
+const sectionsRoutes = require('./routes/sections.routes');
+const appelsRoutes = require('./routes/appels.routes');
+const candidatureRoutes = require('./routes/candidature.routes');
 // Initialisation de la base de données
 async function initDatabase() {
   try {
@@ -68,10 +73,11 @@ async function initDatabase() {
     await Emargement.createTable();
     await FeuillePresence.createTable();
     await AppelCandidature.createTable();
+    await Candidature.createTable();
     await Notification.createTable();
     await Inscription.createTable();
     await InscriptionMatiere.createTable();
-    
+
 
     console.log("Toutes les tables MySQL ont été créées avec succès");
   } catch (error) {
@@ -87,6 +93,10 @@ app.use("/api/annees-academiques", anneeAcademiqueRoutes);
 app.use("/api/matieres", matiereRoutes);
 app.use("/api/inscriptions", inscriptionRoutes);
 app.use('/api/classes', classeRoutes);
+app.use('/api/etudiants', etudiantsRoutes);
+app.use('/api/sections', sectionsRoutes);
+app.use('/api/appels', appelsRoutes);
+app.use('/api/candidatures', candidatureRoutes);
 
 app.listen(PORT, async () => {
   console.log(`Serveur démarré sur http://localhost:${PORT}`);

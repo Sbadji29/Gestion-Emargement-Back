@@ -186,9 +186,38 @@ const sendPasswordChangedEmail = async (email, userName) => {
   }
 };
 
+// 📧 Email de notification de statut de candidature
+const sendCandidatureStatusEmail = async (email, userName, appelTitre, statut, note) => {
+  try {
+    const transporter = createTransporter();
+
+    const statusLabel = statut === 'Accepte' ? 'acceptée' : statut === 'Refuse' ? 'refusée' : statut;
+    const mailOptions = {
+      from: `"${process.env.APP_NAME}" <${process.env.SMTP_FROM}>`,
+      to: email,
+      subject: `Statut de votre candidature: ${statusLabel}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2c3e50;">Bonjour ${userName},</h2>
+          <p>Votre candidature pour <strong>${appelTitre}</strong> a été <strong>${statusLabel}</strong>.</p>
+          ${note ? `<p><strong>Remarque de l'administrateur :</strong><br/>${note}</p>` : ''}
+          <p style="color: #7f8c8d; font-size: 12px; margin-top: 30px;">Cet email est automatique.</p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur envoi email statut candidature:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendWelcomeEmail,
   sendAdminCredentialsEmail,
   sendResetEmail,
   sendPasswordChangedEmail,
+  sendCandidatureStatusEmail,
 };
