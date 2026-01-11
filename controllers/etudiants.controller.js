@@ -1,5 +1,9 @@
 // controllers/etudiants.controller.js
+<<<<<<< HEAD
 const db = require('../config/db.config');
+=======
+const db = require('../config/db');
+>>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
 
 /**
  * US-E1 : Récupérer un étudiant par son code (CRITIQUE)
@@ -7,11 +11,19 @@ const db = require('../config/db.config');
  * Performance < 200ms (utilisé pour scan de carte)
  */
 exports.getByCode = async (req, res) => {
+<<<<<<< HEAD
     try {
         const { codeEtudiant } = req.params;
 
         const [etudiants] = await db.query(
             `SELECT 
+=======
+  try {
+    const { codeEtudiant } = req.params;
+
+    const [etudiants] = await db.promise().query(
+      `SELECT 
+>>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
         e.id,
         e.codeEtudiant,
         e.idClasse,
@@ -30,6 +42,7 @@ exports.getByCode = async (req, res) => {
       LEFT JOIN section s ON e.idSection = s.id
       LEFT JOIN ufr ON e.idUfr = ufr.id
       WHERE e.codeEtudiant = ?`,
+<<<<<<< HEAD
             [codeEtudiant]
         );
 
@@ -73,6 +86,51 @@ exports.getByCode = async (req, res) => {
             error: error.message
         });
     }
+=======
+      [codeEtudiant]
+    );
+
+    if (etudiants.length === 0) {
+      return res.status(404).json({
+        message: 'Étudiant non trouvé'
+      });
+    }
+
+    const etudiant = etudiants[0];
+
+    return res.status(200).json({
+      message: 'Étudiant trouvé',
+      data: {
+        id: etudiant.id,
+        codeEtudiant: etudiant.codeEtudiant,
+        idClasse: etudiant.idClasse,
+        idSection: etudiant.idSection,
+        idUfr: etudiant.idUfr,
+        utilisateur: {
+          nom: etudiant.nom,
+          prenom: etudiant.prenom,
+          email: etudiant.email
+        },
+        classe: {
+          nomClasse: etudiant.nomClasse
+        },
+        section: {
+          nomSection: etudiant.nomSection
+        },
+        ufr: {
+          nom: etudiant.nomUfr
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur récupération étudiant par code:', error);
+    return res.status(500).json({
+      message: 'Erreur lors de la récupération de l\'étudiant',
+      error: error.message
+    });
+  }
+>>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
 };
 
 /**
@@ -80,6 +138,7 @@ exports.getByCode = async (req, res) => {
  * GET /api/etudiants/count/all
  */
 exports.countAll = async (req, res) => {
+<<<<<<< HEAD
     try {
         const [result] = await db.query(
             'SELECT COUNT(*) as total FROM etudiant'
@@ -99,6 +158,27 @@ exports.countAll = async (req, res) => {
             error: error.message
         });
     }
+=======
+  try {
+    const [result] = await db.promise().query(
+      'SELECT COUNT(*) as total FROM etudiant'
+    );
+
+    return res.status(200).json({
+      message: 'Comptage des étudiants',
+      data: {
+        total: result[0].total
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur comptage étudiants:', error);
+    return res.status(500).json({
+      message: 'Erreur lors du comptage des étudiants',
+      error: error.message
+    });
+  }
+>>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
 };
 
 /**
@@ -106,9 +186,15 @@ exports.countAll = async (req, res) => {
  * GET /api/etudiants/count/by-ufr
  */
 exports.countByUfr = async (req, res) => {
+<<<<<<< HEAD
     try {
         const [results] = await db.query(
             `SELECT 
+=======
+  try {
+    const [results] = await db.promise().query(
+      `SELECT 
+>>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
         e.idUfr,
         u.nom as nomUfr,
         COUNT(*) as total
@@ -116,6 +202,7 @@ exports.countByUfr = async (req, res) => {
       LEFT JOIN ufr u ON e.idUfr = u.id
       GROUP BY e.idUfr, u.nom
       ORDER BY total DESC`
+<<<<<<< HEAD
         );
 
         return res.status(200).json({
@@ -130,6 +217,22 @@ exports.countByUfr = async (req, res) => {
             error: error.message
         });
     }
+=======
+    );
+
+    return res.status(200).json({
+      message: 'Comptage par UFR',
+      data: results
+    });
+
+  } catch (error) {
+    console.error('Erreur comptage par UFR:', error);
+    return res.status(500).json({
+      message: 'Erreur lors du comptage par UFR',
+      error: error.message
+    });
+  }
+>>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
 };
 
 /**
@@ -137,6 +240,7 @@ exports.countByUfr = async (req, res) => {
  * GET /api/etudiants/statistics
  */
 exports.getStatistics = async (req, res) => {
+<<<<<<< HEAD
     try {
         // Total étudiants
         const [totalResult] = await db.query(
@@ -146,17 +250,36 @@ exports.getStatistics = async (req, res) => {
         // Par UFR
         const [parUfr] = await db.query(
             `SELECT 
+=======
+  try {
+    // Total étudiants
+    const [totalResult] = await db.promise().query(
+      'SELECT COUNT(*) as total FROM etudiant'
+    );
+
+    // Par UFR
+    const [parUfr] = await db.promise().query(
+      `SELECT 
+>>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
         u.nom as nomUfr,
         COUNT(*) as total
       FROM etudiant e
       LEFT JOIN ufr u ON e.idUfr = u.id
       GROUP BY u.nom
       ORDER BY total DESC`
+<<<<<<< HEAD
         );
 
         // Par classe (top 10)
         const [parClasse] = await db.query(
             `SELECT 
+=======
+    );
+
+    // Par classe (top 10)
+    const [parClasse] = await db.promise().query(
+      `SELECT 
+>>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
         c.nomClasse,
         COUNT(*) as total
       FROM etudiant e
@@ -165,15 +288,24 @@ exports.getStatistics = async (req, res) => {
       GROUP BY c.nomClasse
       ORDER BY total DESC
       LIMIT 10`
+<<<<<<< HEAD
         );
 
         // Nouveaux ce mois
         const [newThisMonth] = await db.query(
             `SELECT COUNT(*) as count
+=======
+    );
+
+    // Nouveaux ce mois
+    const [newThisMonth] = await db.promise().query(
+      `SELECT COUNT(*) as count
+>>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
       FROM etudiant e
       INNER JOIN utilisateur u ON e.idUtilisateur = u.idUtilisateur
       WHERE YEAR(u.dateCreation) = YEAR(CURRENT_DATE)
       AND MONTH(u.dateCreation) = MONTH(CURRENT_DATE)`
+<<<<<<< HEAD
         );
 
         return res.status(200).json({
@@ -280,4 +412,25 @@ exports.getByClasse = async (req, res) => {
         console.error('Erreur récupération étudiants par classe:', error);
         return res.status(500).json({ message: 'Erreur lors de la récupération', error: error.message });
     }
+=======
+    );
+
+    return res.status(200).json({
+      message: 'Statistiques étudiants',
+      data: {
+        total: totalResult[0].total,
+        parUfr,
+        parClasse,
+        nouveauxCeMois: newThisMonth[0].count
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur statistiques étudiants:', error);
+    return res.status(500).json({
+      message: 'Erreur lors de la récupération des statistiques',
+      error: error.message
+    });
+  }
+>>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
 };

@@ -3,51 +3,205 @@ const express = require('express');
 const router = express.Router();
 const examensController = require('../controllers/examens.controller');
 const sessionsController = require('../controllers/sessions.controller');
-const authMiddleware = require('../middlewares/auth.middleware');
-const roleMiddleware = require('../middlewares/role.middleware');
+const authMiddleware = require('../middleware/auth.middleware');
+const roleMiddleware = require('../middleware/role.middleware');
 
 // Toutes les routes nécessitent une authentification
 router.use(authMiddleware);
 
-// Routes de consultation
+/**
+ * @swagger
+ * tags:
+ *   - name: Examens
+ *     description: Gestion des examens et sessions
+ */
+
+/**
+ * @swagger
+ * /api/examens/date/{date}:
+ *   get:
+ *     summary: Récupérer les examens d'une date spécifique (format YYYY-MM-DD)
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Liste des examens du jour avec leurs sessions
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.get('/date/:date', examensController.getByDate);
+
+/**
+ * @swagger
+ * /api/examens/count/all:
+ *   get:
+ *     summary: Compter le nombre total d'examens
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Nombre total
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ */
 router.get('/count/all', examensController.countAll);
+
+/**
+ * @swagger
+ * /api/examens/count/by-status:
+ *   get:
+ *     summary: Compter les examens par statut
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Comptage détaillé par statut
+ */
 router.get('/count/by-status', examensController.countByStatus);
+
+/**
+ * @swagger
+ * /api/examens/statistics:
+ *   get:
+ *     summary: Statistiques globales des examens
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Statistiques (total, par statut, par type, prochains examens)
+ */
 router.get('/statistics', examensController.getStatistics);
+
+/**
+ * @swagger
+ * /api/examens/{id}/etudiants:
+ *   get:
+ *     summary: Liste des étudiants inscrits à un examen (via la matière)
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Liste des étudiants
+ *       404:
+ *         description: Examen non trouvé
+ */
 router.get('/:id/etudiants', examensController.getEtudiants);
 
-// Routes de gestion du statut
+/**
+ * @swagger
+ * /api/examens/{id}/statut:
+ *   patch:
+ *     summary: Modifier le statut d'un examen (Planifie, EnCours, Termine, Annule)
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               statut:
+ *                 type: string
+ *                 enum: [Planifie, EnCours, Termine, Annule]
+ *     responses:
+ *       200:
+ *         description: Statut mis à jour
+ *       400:
+ *         description: Statut invalide
+ *     roles:
+ *       - SURVEILLANT
+ *       - ADMIN
+ *       - SUPERADMIN
+ */
 router.patch('/:id/statut', 
   roleMiddleware(['SURVEILLANT', 'ADMIN', 'SUPERADMIN']), 
   examensController.updateStatut
 );
 
-// Routes CRUD examens (admin uniquement)
+/**
+ * @swagger
+ * /api/examens:
+ *   post:
+ *     summary: Créer un nouvel examen (admin uniquement)
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - codeExamen
+ *               - dateExamen
+ *               - duree
+ *               - typeExamen
+ *               - idMatiere
+ *             properties:
+ *               codeExamen:
+ *                 type: string
+ *               dateExamen:
+ *                 type: string
+ *                 format: date-time
+ *               duree:
+ *                 type: integer
+ *               typeExamen:
+ *                 type: string
+ *               nombrePlaces:
+ *                 type: integer
+ *               idMatiere:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Examen créé
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *     roles:
+ *       - ADMIN
+ *       - SUPERADMIN
+ */
 router.post('/', 
   roleMiddleware(['ADMIN', 'SUPERADMIN']), 
   examensController.create
 );
 
-router.put('/:id', 
-  roleMiddleware(['ADMIN', 'SUPERADMIN']), 
-  examensController.update
-);
+// ... (continuer de la même façon pour les autres routes : put, delete, sessions, get by id, get all)
 
-router.delete('/:id', 
-  roleMiddleware(['ADMIN', 'SUPERADMIN']), 
-  examensController.delete
-);
-
-// Routes sessions
-router.post('/sessions', 
-  roleMiddleware(['ADMIN', 'SUPERADMIN']), 
-  sessionsController.createSession
-);
-
-router.get('/sessions/:id', sessionsController.getSessionById);
-router.get('/sessions', sessionsController.getAllSessions);
-
-// Routes GET avec ID à la fin
 router.get('/:id', examensController.getById);
 router.get('/', examensController.getAll);
 

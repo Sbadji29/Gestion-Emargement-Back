@@ -2,54 +2,237 @@
 const express = require('express');
 const router = express.Router();
 const surveillantsController = require('../controllers/surveillants.controller');
-const authMiddleware = require('../middlewares/auth.middleware');
-const roleMiddleware = require('../middlewares/role.middleware');
+const authMiddleware = require('../middleware/auth.middleware');
+const roleMiddleware = require('../middleware/role.middleware');
 
-// Route publique pour auto-inscription
+/**
+ * @swagger
+ * tags:
+ *   - name: Surveillants
+ *     description: Gestion des surveillants
+ */
+
+/**
+ * @swagger
+ * /api/surveillants/inscription:
+ *   post:
+ *     summary: Auto-inscription d'un surveillant (publique)
+ *     tags: [Surveillants]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - nom
+ *               - prenom
+ *               - email
+ *               - motDePasse
+ *               - matricule
+ *             properties:
+ *               nom:
+ *                 type: string
+ *               prenom:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               motDePasse:
+ *                 type: string
+ *               matricule:
+ *                 type: string
+ *               telephone:
+ *                 type: string
+ *               specialite:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Inscription réussie
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       409:
+ *         description: Email ou matricule déjà utilisé
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.post('/inscription', surveillantsController.inscription);
 
 // Routes protégées
 router.use(authMiddleware);
 
-// Profil du surveillant connecté
+/**
+ * @swagger
+ * /api/surveillants/mon-profil:
+ *   get:
+ *     summary: Récupérer le profil du surveillant connecté
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profil du surveillant
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.get('/mon-profil', 
   roleMiddleware(['SURVEILLANT']), 
   surveillantsController.getMonProfil
 );
 
+/**
+ * @swagger
+ * /api/surveillants/mon-profil:
+ *   put:
+ *     summary: Modifier le profil du surveillant connecté
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               telephone:
+ *                 type: string
+ *               specialite:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profil mis à jour
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.put('/mon-profil', 
   roleMiddleware(['SURVEILLANT']), 
   surveillantsController.updateMonProfil
 );
 
-// US-S5 : Mes affectations
+/**
+ * @swagger
+ * /api/surveillants/mes-affectations:
+ *   get:
+ *     summary: Lister les affectations du surveillant connecté
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des affectations
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.get('/mes-affectations', 
   roleMiddleware(['SURVEILLANT']), 
   surveillantsController.getMesAffectations
 );
 
-// US-S6 : Changer ma disponibilité
+/**
+ * @swagger
+ * /api/surveillants/disponibilite:
+ *   patch:
+ *     summary: Changer la disponibilité du surveillant connecté
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               disponible:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Disponibilité mise à jour
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.patch('/disponibilite', 
   roleMiddleware(['SURVEILLANT']), 
   surveillantsController.updateDisponibilite
 );
 
-// Routes admin
+/**
+ * @swagger
+ * /api/surveillants/disponibles:
+ *   get:
+ *     summary: Lister les surveillants disponibles (admin uniquement)
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: specialite
+ *         schema:
+ *           type: string
+ *         description: Filtrer par spécialité
+ *     responses:
+ *       200:
+ *         description: Liste des surveillants disponibles
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.get('/disponibles', 
   roleMiddleware(['ADMIN', 'SUPERADMIN']), 
   surveillantsController.getDisponibles
 );
 
+/**
+ * @swagger
+ * /api/surveillants/count/all:
+ *   get:
+ *     summary: Compter tous les surveillants (admin uniquement)
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Nombre total de surveillants
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.get('/count/all', 
   roleMiddleware(['ADMIN', 'SUPERADMIN']), 
   surveillantsController.countAll
 );
 
+/**
+ * @swagger
+ * /api/surveillants/count/disponibles:
+ *   get:
+ *     summary: Compter les surveillants disponibles (admin uniquement)
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Nombre de surveillants disponibles
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.get('/count/disponibles', 
   roleMiddleware(['ADMIN', 'SUPERADMIN']), 
   surveillantsController.countDisponibles
 );
 
+/**
+ * @swagger
+ * /api/surveillants/statistics:
+ *   get:
+ *     summary: Statistiques des surveillants (admin uniquement)
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Statistiques (total, disponibles, affectés, par spécialité)
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.get('/statistics', 
   roleMiddleware(['ADMIN', 'SUPERADMIN']), 
   surveillantsController.getStatistics

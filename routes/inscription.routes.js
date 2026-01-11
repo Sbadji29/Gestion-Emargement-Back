@@ -126,7 +126,7 @@ const checkRole = require("../middleware/roleCheck.middleware");
 const uploadDir = "uploads/csv";
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
-  console.log("✅ Dossier uploads/csv créé avec succès");
+  console.log(" Dossier uploads/csv créé avec succès");
 }
 
 // Configuration du stockage multer

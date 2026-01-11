@@ -1,5 +1,5 @@
 // controllers/utilisateurs.controller.js
-const db = require('../config/db.config');
+const db = require('../config/db');
 
 /**
  * US-U1 : Récupérer un utilisateur par ID
@@ -10,7 +10,7 @@ exports.getUtilisateurById = async (req, res) => {
     const { id } = req.params;
 
     // Requête pour récupérer l'utilisateur
-    const [users] = await db.query(
+    const [users] = await db.promise().query(
       `SELECT 
         u.idUtilisateur,
         u.nom,
@@ -35,7 +35,7 @@ exports.getUtilisateurById = async (req, res) => {
 
     // Si c'est un étudiant, récupérer les infos supplémentaires
     if (user.role === 'ETUDIANT') {
-      const [etudiant] = await db.query(
+      const [etudiant] = await db.promise().query(
         `SELECT 
           e.codeEtudiant,
           e.idClasse,
@@ -62,7 +62,7 @@ exports.getUtilisateurById = async (req, res) => {
 
     // Si c'est un surveillant, récupérer les infos supplémentaires
     if (user.role === 'SURVEILLANT') {
-      const [surveillant] = await db.query(
+      const [surveillant] = await db.promise().query(
         `SELECT 
           matricule,
           telephone,
@@ -103,7 +103,7 @@ exports.getUtilisateurById = async (req, res) => {
  */
 exports.countAll = async (req, res) => {
   try {
-    const [result] = await db.query(
+    const [result] = await db.promise().query(
       'SELECT COUNT(*) as total FROM utilisateur'
     );
 
@@ -129,7 +129,7 @@ exports.countAll = async (req, res) => {
  */
 exports.countByRole = async (req, res) => {
   try {
-    const [results] = await db.query(
+    const [results] = await db.promise().query(
       `SELECT 
         role,
         COUNT(*) as count
@@ -172,12 +172,12 @@ exports.countByRole = async (req, res) => {
 exports.getStatistics = async (req, res) => {
   try {
     // Total utilisateurs
-    const [totalResult] = await db.query(
+    const [totalResult] = await db.promise().query(
       'SELECT COUNT(*) as total FROM utilisateur'
     );
 
     // Actifs/Inactifs
-    const [statusResult] = await db.query(
+    const [statusResult] = await db.promise().query(
       `SELECT 
         SUM(CASE WHEN actif = 1 THEN 1 ELSE 0 END) as actifs,
         SUM(CASE WHEN actif = 0 THEN 1 ELSE 0 END) as inactifs
@@ -185,7 +185,7 @@ exports.getStatistics = async (req, res) => {
     );
 
     // Par rôle
-    const [roleResult] = await db.query(
+    const [roleResult] = await db.promise().query(
       `SELECT 
         role,
         COUNT(*) as count
@@ -205,7 +205,7 @@ exports.getStatistics = async (req, res) => {
     });
 
     // Nouveaux ce mois
-    const [newThisMonth] = await db.query(
+    const [newThisMonth] = await db.promise().query(
       `SELECT COUNT(*) as count
       FROM utilisateur
       WHERE YEAR(dateCreation) = YEAR(CURRENT_DATE)
@@ -213,7 +213,7 @@ exports.getStatistics = async (req, res) => {
     );
 
     // Dernières connexions (top 5)
-    const [recentConnections] = await db.query(
+    const [recentConnections] = await db.promise().query(
       `SELECT 
         nom,
         prenom,
