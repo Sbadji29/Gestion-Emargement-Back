@@ -51,12 +51,8 @@ const anneeAcademiqueRoutes = require("./routes/anneeAcademique.routes");
 const matiereRoutes = require("./routes/matiere.routes");
 const inscriptionRoutes = require("./routes/inscription.routes");
 const classeRoutes = require('./routes/classe.route');
-<<<<<<< HEAD
-const etudiantsRoutes = require('./routes/etudiants.routes');
-const sectionsRoutes = require('./routes/sections.routes');
 const appelsRoutes = require('./routes/appels.routes');
 const candidatureRoutes = require('./routes/candidature.routes');
-=======
 const utilisateursRoutes = require('./routes/utilisateurs.routes');
 const etudiantsRoutes = require('./routes/etudiants.routes');
 const surveillantsRoutes = require('./routes/surveillants.routes');
@@ -65,7 +61,6 @@ const sectionsRoutes = require('./routes/sections.routes');
 const examensRoutes = require('./routes/examens.routes');
 const sessionsRoutes= require('./routes/sessions.routes');
 
->>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
 // Initialisation de la base de données
 async function initDatabase() {
   try {
@@ -104,12 +99,8 @@ app.use("/api/annees-academiques", anneeAcademiqueRoutes);
 app.use("/api/matieres", matiereRoutes);
 app.use("/api/inscriptions", inscriptionRoutes);
 app.use('/api/classes', classeRoutes);
-<<<<<<< HEAD
-app.use('/api/etudiants', etudiantsRoutes);
-app.use('/api/sections', sectionsRoutes);
 app.use('/api/appels', appelsRoutes);
 app.use('/api/candidatures', candidatureRoutes);
-=======
 app.use('/api/utilisateurs', utilisateursRoutes);
 app.use('/api/etudiants', etudiantsRoutes);
 app.use('/api/surveillants', surveillantsRoutes);
@@ -117,7 +108,6 @@ app.use('/api/salles', sallesRoutes);
 app.use('/api/sections', sectionsRoutes);
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/examens', examensRoutes);
->>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
 
 app.listen(PORT, async () => {
   console.log(`Serveur démarré sur http://localhost:${PORT}`);

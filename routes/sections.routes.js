@@ -8,31 +8,6 @@ const roleMiddleware = require('../middleware/role.middleware');
 // Toutes les routes nécessitent une authentification
 router.use(authMiddleware);
 
-<<<<<<< HEAD
-// Routes de consultation (tous les utilisateurs)
-// Récupérer sections par idUfr
-router.get('/ufr/:idUfr', sectionsController.getByUfr);
-// Récupérer sections de l'UFR de l'admin connecté
-router.get('/ufr/me', sectionsController.getByAdminUfr);
-router.get('/count/all', sectionsController.countAll);
-router.get('/count/by-ufr', sectionsController.countByUfr);
-router.get('/statistics', sectionsController.getStatistics);
-router.get('/:id/etudiants', sectionsController.getEtudiants);
-
-// Routes CRUD (admin uniquement)
-router.post('/',
-  roleMiddleware(['ADMIN', 'SUPERADMIN']),
-  sectionsController.create
-);
-
-router.put('/:id',
-  roleMiddleware(['ADMIN', 'SUPERADMIN']),
-  sectionsController.update
-);
-
-router.delete('/:id',
-  roleMiddleware(['ADMIN', 'SUPERADMIN']),
-=======
 /**
  * @swagger
  * tags:
@@ -270,6 +245,38 @@ router.get('/count/all', sectionsController.countAll);
  *         $ref: '#/components/responses/ServerError'
  */
 router.get('/count/by-ufr', sectionsController.countByUfr);
+
+/**
+ * @swagger
+ * /api/sections/ufr/me:
+ *   get:
+ *     summary: Récupérer les sections de l'UFR de l'administrateur connecté
+ *     description: |
+ *       Retourne toutes les sections appartenant à la même UFR que l'administrateur authentifié
+ *     tags: [Sections]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des sections de l'UFR de l'admin
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Sections de l'UFR de l'admin"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Section'
+ *       404:
+ *         description: Administrateur ou UFR introuvable
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/ufr/me', sectionsController.getByAdminUfr);
 
 /**
  * @swagger
@@ -601,7 +608,6 @@ router.put('/:id',
  */
 router.delete('/:id', 
   roleMiddleware(['ADMIN', 'SUPERADMIN']), 
->>>>>>> 2c1b57cc7d54eec54e85f1b9ec7ebefb152018f4
   sectionsController.delete
 );
 

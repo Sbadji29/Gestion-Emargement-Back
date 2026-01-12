@@ -25,10 +25,10 @@ exports.create = async (req, res) => {
 exports.getAll = async (req, res) => {
     try {
         const [rows] = await db.query(
-            `SELECT a.*, u.nom as createurNom, u.prenom as createurPrenom, uf.nom as nomUfr
+            `SELECT a.*, u.nom as createurNom, u.prenom as createurPrenom, ufr.nom as nomUfr
        FROM appel_candidature a
        LEFT JOIN utilisateur u ON a.idCreateur = u.idUtilisateur
-       LEFT JOIN ufr uf ON a.idUfr = uf.id
+       LEFT JOIN ufr ON a.idUfr = ufr.id
        ORDER BY a.dateCreation DESC`
         );
         return res.status(200).json({ message: 'Appels listés', data: rows });
@@ -93,7 +93,7 @@ exports.getByUserUfr = async (req, res) => {
         const [rows] = await db.query(
             `SELECT a.*, uf.nom as nomUfr
        FROM appel_candidature a
-       LEFT JOIN ufr uf ON a.idUfr = uf.id
+       LEFT JOIN ufr ON a.idUfr = ufr.id
        WHERE a.idUfr = ?
        ORDER BY a.dateCreation DESC`,
             [idUfr]
