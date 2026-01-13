@@ -56,7 +56,7 @@ exports.getAllUfr = async (req, res) => {
   }
 };
 
-//  Récupérer une UFR par ID
+// 🔍 Récupérer une UFR par ID
 exports.getUfrById = async (req, res) => {
   const { id } = req.params;
 
@@ -129,5 +129,93 @@ exports.deleteUfr = async (req, res) => {
   } catch (error) {
     console.error("Erreur deleteUfr:", error);
     res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+/**
+ * Récupérer l'ID de l'UFR de l'administrateur connecté
+ * GET /api/ufr/admin/my-ufr-id
+ */
+exports.getMyUfrId = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const [adminRows] = await db.promise().query(
+      'SELECT idUfr FROM administrateur WHERE idUtilisateur = ?',
+      [userId]
+    );
+
+    if (adminRows.length === 0) {
+      return res.status(404).json({ 
+        message: "Administrateur non trouvé" 
+      });
+    }
+
+    if (!adminRows[0].idUfr) {
+      return res.status(404).json({ 
+        message: "Cet administrateur n'est associé à aucune UFR" 
+      });
+    }
+
+    return res.status(200).json({
+      message: "ID UFR de l'administrateur",
+      data: {
+        idUfr: adminRows[0].idUfr
+      }
+    });
+
+  } catch (error) {
+    console.error("Erreur getMyUfrId:", error);
+    return res.status(500).json({ 
+      message: "Erreur serveur",
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * Récupérer les informations complètes de l'UFR de l'administrateur connecté
+ * GET /api/ufr/admin/my-ufr
+ */
+exports.getMyUfr = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const [adminRows] = await db.promise().query(
+      `SELECT 
+        a.idUfr,
+        u.nom,
+        u.adresse,
+        u.telephone,
+        u.email
+      FROM administrateur a
+      INNER JOIN ufr u ON a.idUfr = u.id
+      WHERE a.idUtilisateur = ?`,
+      [userId]
+    );
+
+    if (adminRows.length === 0) {
+      return res.status(404).json({ 
+        message: "Administrateur non trouvé ou non associé à une UFR" 
+      });
+    }
+
+    return res.status(200).json({
+      message: "UFR de l'administrateur",
+      data: {
+        id: adminRows[0].idUfr,
+        nom: adminRows[0].nom,
+        adresse: adminRows[0].adresse,
+        telephone: adminRows[0].telephone,
+        email: adminRows[0].email
+      }
+    });
+
+  } catch (error) {
+    console.error("Erreur getMyUfr:", error);
+    return res.status(500).json({ 
+      message: "Erreur serveur",
+      error: error.message 
+    });
   }
 };
