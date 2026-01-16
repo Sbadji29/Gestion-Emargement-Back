@@ -210,10 +210,15 @@ Pour chaque endpoint: Méthode, URL, Auth (oui/non), Rôle(s) requis, Paramètre
 
 ## Inscriptions (base `/api/inscriptions`)
 
+
 - POST `/api/inscriptions/upload-csv`
   - Auth: Oui, `ADMIN|SUPERADMIN`
-  - Multipart Body: `csvFile` (CSV), `idClasse`, `idAnneeAcademique`, `idUfr`
-  - But: import massif CSV — création/mise à jour des utilisateurs/étudiants/matières/inscriptions, transaction complète, gestion des doublons
+  - Multipart Body :
+    - `csvFile` (CSV)
+    - `idClasse` (obligatoire, à renseigner à part, s'applique à tous les étudiants importés)
+    - `idSection` (optionnel, à renseigner à part, s'applique à tous les étudiants importés)
+    - `idAnneeAcademique`, `idUfr`
+  - But: import massif CSV — création/mise à jour des utilisateurs/étudiants/matières/inscriptions, transaction complète, gestion des doublons. **La classe et la section ne doivent pas être dans le CSV, mais dans le formulaire d'import.**
 
 - PATCH `/api/inscriptions/:id/statut` — modifier statut d'une inscription (`statut` dans body)
 

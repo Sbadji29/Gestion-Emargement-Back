@@ -166,10 +166,15 @@ Pour chaque route : méthode HTTP, chemin, authentification & rôles requis, par
 
 ## Inscriptions (`/api/inscriptions`)
 
+
 - POST `/api/inscriptions/upload-csv`
   - Auth: Oui, rôles `ADMIN|SUPERADMIN`
-  - Form-data: `csvFile` (fichier CSV), `idClasse`, `idAnneeAcademique`, `idUfr`
-  - Fonctionnalité: import massif CSV ; crée/ met à jour `utilisateur`, `etudiant`, `inscription`, `matiere`; transaction complète; rollback en cas d'erreur.
+  - Form-data :
+    - `csvFile` (fichier CSV)
+    - `idClasse` (obligatoire, à renseigner à part, s'applique à tous les étudiants importés)
+    - `idSection` (optionnel, à renseigner à part, s'applique à tous les étudiants importés)
+    - `idAnneeAcademique`, `idUfr`
+  - Fonctionnalité: import massif CSV ; crée/ met à jour `utilisateur`, `etudiant`, `inscription`, `matiere`; transaction complète; rollback en cas d'erreur. **La classe et la section ne doivent pas être dans le CSV, mais dans le formulaire d'import.**
 
 - PATCH `/api/inscriptions/:id/statut` (ADMIN)
   - Auth: Oui, `ADMIN|SUPERADMIN`

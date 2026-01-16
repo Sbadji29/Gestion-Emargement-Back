@@ -178,7 +178,7 @@ router.use(authMiddleware);
  *       
  *       **Format du CSV :**
  *       
- *       Colonnes requises:
+ *       Colonnes requises dans le CSV :
  *       - codeEtudiant: Code unique de l'étudiant (ex: ET2024001)
  *       - nom: Nom de famille (en majuscules)
  *       - prenom: Prénom
@@ -187,6 +187,9 @@ router.use(authMiddleware);
  *       - codeMatiere: Code de la matière (ex: INF301)
  *       - nomMatiere: Nom complet de la matière
  *       - credits: Nombre de crédits (1-10)
+ *       
+ *       **Remarque importante :**
+ *       Les champs "Classe" et "Section" doivent être renseignés à part dans le formulaire d'import (idClasse, idSection) et ne doivent PAS figurer dans le CSV. Ils seront appliqués à tous les étudiants importés.
  *       
  *       **Exemple CSV :**
  *       ```
@@ -227,6 +230,10 @@ router.use(authMiddleware);
  *                 type: integer
  *                 example: 3
  *                 description: ID de la classe
+ *               idSection:
+ *                 type: integer
+ *                 example: 2
+ *                 description: ID de la section (optionnel, à renseigner pour affecter tous les étudiants importés à une section)
  *               idAnneeAcademique:
  *                 type: integer
  *                 example: 1

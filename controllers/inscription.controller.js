@@ -11,8 +11,8 @@ const inscriptionController = {
     try {
       // Vérifier qu'un fichier a été uploadé
       if (!req.file) {
-        return res.status(400).json({ 
-          message: "Aucun fichier CSV fourni" 
+        return res.status(400).json({
+          message: "Aucun fichier CSV fourni"
         });
       }
 
@@ -22,8 +22,8 @@ const inscriptionController = {
       if (!idClasse || !idAnneeAcademique || !idUfr) {
         // Supprimer le fichier uploadé
         fs.unlinkSync(req.file.path);
-        return res.status(400).json({ 
-          message: "idClasse, idAnneeAcademique et idUfr sont requis" 
+        return res.status(400).json({
+          message: "idClasse, idAnneeAcademique et idUfr sont requis"
         });
       }
 
@@ -35,8 +35,8 @@ const inscriptionController = {
 
       if (classeExists.length === 0) {
         fs.unlinkSync(req.file.path);
-        return res.status(404).json({ 
-          message: "Classe non trouvée" 
+        return res.status(404).json({
+          message: "Classe non trouvée"
         });
       }
 
@@ -48,8 +48,8 @@ const inscriptionController = {
 
       if (anneeExists.length === 0) {
         fs.unlinkSync(req.file.path);
-        return res.status(404).json({ 
-          message: "Année académique non trouvée" 
+        return res.status(404).json({
+          message: "Année académique non trouvée"
         });
       }
 
@@ -61,8 +61,8 @@ const inscriptionController = {
 
       if (ufrExists.length === 0) {
         fs.unlinkSync(req.file.path);
-        return res.status(404).json({ 
-          message: "UFR non trouvée" 
+        return res.status(404).json({
+          message: "UFR non trouvée"
         });
       }
 
@@ -107,7 +107,7 @@ const inscriptionController = {
           if (utilisateur.length === 0) {
             // Créer un nouvel utilisateur avec mot de passe = codeEtudiant
             const hashedPassword = await bcrypt.hash(etudiantData.codeEtudiant, 10);
-            
+
             const [userResult] = await connection.query(
               "INSERT INTO utilisateur (nom, prenom, email, motDePasse, role) VALUES (?, ?, ?, ?, 'ETUDIANT')",
               [etudiantData.nom, etudiantData.prenom, etudiantData.email, hashedPassword]
@@ -129,19 +129,18 @@ const inscriptionController = {
 
           if (etudiant.length === 0) {
             const [etudiantResult] = await connection.query(
-              "INSERT INTO etudiant (codeEtudiant, idUtilisateur, idUfr) VALUES (?, ?, ?)",
-              [etudiantData.codeEtudiant, idUtilisateur, idUfr]
+              "INSERT INTO etudiant (codeEtudiant, idUtilisateur, idUfr, idClasse, idSection) VALUES (?, ?, ?, ?, ?)",
+              [etudiantData.codeEtudiant, idUtilisateur, idUfr, idClasse, req.body.idSection || null]
             );
 
             idEtudiant = etudiantResult.insertId;
           } else {
             idEtudiant = etudiant[0].id;
             stats.etudiantsExistants++;
-            
-            // Mettre à jour les informations de l'étudiant
+            // Mettre à jour les informations de l'étudiant (ajoute idClasse et idSection)
             await connection.query(
-              "UPDATE etudiant SET idUtilisateur = ?, idUfr = ? WHERE id = ?",
-              [idUtilisateur, idUfr, idEtudiant]
+              "UPDATE etudiant SET idUtilisateur = ?, idUfr = ?, idClasse = ?, idSection = ? WHERE id = ?",
+              [idUtilisateur, idUfr, idClasse, req.body.idSection || null, idEtudiant]
             );
           }
 
@@ -164,7 +163,7 @@ const inscriptionController = {
           } else {
             idInscription = inscription[0].id;
             stats.inscriptionsExistantes++;
-            
+
             // Mettre à jour le type d'inscription si nécessaire
             await connection.query(
               "UPDATE inscription SET typeInscription = ? WHERE id = ?",
@@ -240,9 +239,9 @@ const inscriptionController = {
       }
 
       console.error("Erreur import CSV:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erreur lors de l'import du CSV",
-        error: error.message 
+        error: error.message
       });
     } finally {
       if (connection) {
@@ -286,9 +285,9 @@ const inscriptionController = {
       });
     } catch (error) {
       console.error("Erreur récupération inscriptions:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erreur lors de la récupération des inscriptions",
-        error: error.message 
+        error: error.message
       });
     }
   },
@@ -319,8 +318,8 @@ const inscriptionController = {
       `, [codeEtudiant]);
 
       if (inscriptions.length === 0) {
-        return res.status(404).json({ 
-          message: "Aucune inscription trouvée pour cet étudiant" 
+        return res.status(404).json({
+          message: "Aucune inscription trouvée pour cet étudiant"
         });
       }
 
@@ -330,9 +329,9 @@ const inscriptionController = {
       });
     } catch (error) {
       console.error("Erreur récupération inscriptions étudiant:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erreur lors de la récupération des inscriptions",
-        error: error.message 
+        error: error.message
       });
     }
   },
@@ -368,9 +367,9 @@ const inscriptionController = {
       });
     } catch (error) {
       console.error("Erreur récupération étudiants par matière:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erreur lors de la récupération des étudiants",
-        error: error.message 
+        error: error.message
       });
     }
   },
@@ -387,8 +386,8 @@ const inscriptionController = {
       );
 
       if (existing.length === 0) {
-        return res.status(404).json({ 
-          message: "Inscription non trouvée" 
+        return res.status(404).json({
+          message: "Inscription non trouvée"
         });
       }
 
@@ -403,9 +402,9 @@ const inscriptionController = {
       });
     } catch (error) {
       console.error("Erreur suppression inscription:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erreur lors de la suppression de l'inscription",
-        error: error.message 
+        error: error.message
       });
     }
   },
@@ -417,8 +416,8 @@ const inscriptionController = {
       const { statut } = req.body;
 
       if (!['Active', 'Suspendue', 'Annulee'].includes(statut)) {
-        return res.status(400).json({ 
-          message: "Statut invalide. Doit être 'Active', 'Suspendue' ou 'Annulee'" 
+        return res.status(400).json({
+          message: "Statut invalide. Doit être 'Active', 'Suspendue' ou 'Annulee'"
         });
       }
 
@@ -429,8 +428,8 @@ const inscriptionController = {
       );
 
       if (existing.length === 0) {
-        return res.status(404).json({ 
-          message: "Inscription non trouvée" 
+        return res.status(404).json({
+          message: "Inscription non trouvée"
         });
       }
 
@@ -445,9 +444,9 @@ const inscriptionController = {
       });
     } catch (error) {
       console.error("Erreur mise à jour statut:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Erreur lors de la mise à jour du statut",
-        error: error.message 
+        error: error.message
       });
     }
   }
