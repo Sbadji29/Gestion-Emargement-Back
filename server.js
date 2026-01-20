@@ -45,6 +45,10 @@ app.get("/", (req, res) => {
   res.send("API Gestion des Émargements en cours d'exécution - Documentation disponible sur /api-docs");
 });
 
+app.use(cors({
+  origin: "http://localhost:4200",
+  credentials: true}
+))
 const authRoutes = require("./routes/auth.route");
 const ufrRoutes = require("./routes/ufr.route");
 const anneeAcademiqueRoutes = require("./routes/anneeAcademique.routes");
