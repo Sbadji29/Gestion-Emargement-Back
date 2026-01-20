@@ -512,3 +512,57 @@ exports.getStatistics = async (req, res) => {
     });
   }
 };
+
+/**
+ * US-EX7 : Lister les candidats (surveillants) pour un examen
+ * GET /api/examens/:id/candidats
+ */
+exports.getCandidats = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Vérifier si l'examen existe
+    const [examen] = await db.promise().query(
+      'SELECT id FROM examen WHERE id = ?',
+      [id]
+    );
+
+    if (examen.length === 0) {
+      return res.status(404).json({
+        message: 'Examen non trouvé'
+      });
+    }
+
+    // Récupérer les candidatures liées à cet examen via l'appel à candidature
+    // Examen -> AppelCandidature -> Candidature -> Utilisateur
+    const [candidats] = await db.promise().query(
+      `SELECT 
+        c.id as idCandidature,
+        c.statut as statutCandidature,
+        c.dateSoumission,
+        u.idUtilisateur,
+        u.nom,
+        u.prenom,
+        u.email,
+        u.role
+      FROM candidature c
+      INNER JOIN appel_candidature ac ON c.idAppel = ac.id
+      INNER JOIN utilisateur u ON c.idUtilisateur = u.idUtilisateur
+      WHERE ac.idExamen = ?
+      ORDER BY c.dateSoumission DESC`,
+      [id]
+    );
+
+    return res.status(200).json({
+      message: 'Liste des surveillants candidats',
+      data: candidats
+    });
+
+  } catch (error) {
+    console.error('Erreur récupération candidats:', error);
+    return res.status(500).json({
+      message: 'Erreur lors de la récupération des candidats',
+      error: error.message
+    });
+  }
+};

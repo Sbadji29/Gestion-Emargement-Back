@@ -115,6 +115,28 @@ router.get('/:id/etudiants', examensController.getEtudiants);
 
 /**
  * @swagger
+ * /api/examens/{id}/candidats:
+ *   get:
+ *     summary: Liste des surveillants ayant postulé à un examen
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Liste des candidats (surveillants)
+ *       404:
+ *         description: Examen non trouvé
+ */
+router.get('/:id/candidats', examensController.getCandidats);
+
+/**
+ * @swagger
  * /api/examens/{id}/statut:
  *   patch:
  *     summary: Modifier le statut d'un examen (Planifie, EnCours, Termine, Annule)
