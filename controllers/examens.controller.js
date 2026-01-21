@@ -566,3 +566,170 @@ exports.getCandidats = async (req, res) => {
     });
   }
 };
+
+/**
+ * US-EX-WF1 : Démarrer un examen
+ * PATCH /api/examens/:id/demarrer
+ */
+exports.startExam = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db.promise().query("UPDATE examen SET statut = 'EnCours' WHERE id = ?", [id]);
+        return res.status(200).json({ message: 'Examen démarré' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    }
+};
+
+/**
+ * US-EX-WF2 : Terminer un examen
+ * PATCH /api/examens/:id/terminer
+ * Logique : Marquer les non-présents comme ABSENT
+ */
+exports.endExam = async (req, res) => {
+    const connection = await db.promise().getConnection();
+    try {
+        const { id } = req.params;
+        await connection.beginTransaction();
+
+        // 1. Passer l'examen à TERMINÉ
+        await connection.query("UPDATE examen SET statut = 'Termine' WHERE id = ?", [id]);
+
+        // 2. Identifier les étudiants inscrits mais SANS émargement
+        // On suppose que l'inscription se fait via l'inscription à la matière liée à l'examen
+        const [examInfo] = await connection.query("SELECT idMatiere FROM examen WHERE id = ?", [id]);
+        if (examInfo.length === 0) throw new Error("Examen introuvable");
+        const idMatiere = examInfo[0].idMatiere;
+
+        // Récupérer tous les étudiants inscrits à la matière
+        // Et qui n'ont PAS d'émargement pour une session de cet examen
+        // NOTE: Simplification - On suppose une session principale ou on prend toutes les sessions de l'examen
+        // Pour faire simple et robuste : on regarde les étudiants inscrits à la matière qui n'ont pas d'entrée 'emargement' liée à une session de cet examen.
+        
+        // Récupérer les sessions de l'examen
+        const [sessions] = await connection.query("SELECT id FROM session_examen WHERE idExamen = ?", [id]);
+        const sessionIds = sessions.map(s => s.id);
+
+        if (sessionIds.length > 0) {
+            // Insérer ABSENT pour ceux qui manquent
+            // INSERT INTO emargement (idSession, idEtudiant, statut, dateHeure) 
+            // SELECT SESSION_ID, e.id, 'Absent', NOW() FROM ...
+            // C'est complexe si plusieurs sessions. On va supposer qu'on traite les abscences pour chaque session.
+            
+            for(let sessionId of sessionIds) {
+                 await connection.query(`
+                    INSERT INTO emargement (idSession, idEtudiant, statut, dateHeure, idSurveillant)
+                    SELECT ?, e.id, 'Absent', NOW(), NULL
+                    FROM inscription_matiere im
+                    JOIN inscription i ON im.idInscription = i.id
+                    JOIN etudiant e ON i.idEtudiant = e.id
+                    WHERE im.idMatiere = ?
+                    AND e.id NOT IN (
+                        SELECT idEtudiant FROM emargement WHERE idSession = ?
+                    )
+                 `, [sessionId, idMatiere, sessionId]);
+            }
+        }
+
+        await connection.commit();
+        return res.status(200).json({ message: 'Examen terminé. Absences générées.' });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error("Erreur fin examen:", error);
+        return res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    } finally {
+        connection.release();
+    }
+};
+
+/**
+ * US-EX-SCAN : Scan Intelligent
+ * POST /api/examens/:id/scan
+ * Body: { "student_code": "XYZ" }
+ */
+exports.scanStudent = async (req, res) => {
+    const connection = await db.promise().getConnection();
+    try {
+        const { id } = req.params; // idExamen
+        const { student_code } = req.body;
+        const idSurveillant = req.user.idUtilisateur; // Surveillant connecté (via middleware auth mais attention, ici on veut l'idSurveillant table surveillant, pas utilisateur)
+        
+        // Récupérer l'ID surveillant
+        const [surveillantRes] = await connection.query("SELECT id FROM surveillant WHERE idUtilisateur = ?", [req.user.idUtilisateur]);
+        if(surveillantRes.length === 0) return res.status(403).json({message: "Vous n'êtes pas surveillant"});
+        const realIdSurveillant = surveillantRes[0].id;
+
+        // 1. Vérifier étudiant et inscription à l'examen (via matière)
+        const [student] = await connection.query(`
+            SELECT e.id, e.codeEtudiant 
+            FROM etudiant e
+            JOIN inscription i ON e.id = i.idEtudiant
+            JOIN inscription_matiere im ON i.id = im.idInscription
+            JOIN examen ex ON im.idMatiere = ex.idMatiere
+            WHERE e.codeEtudiant = ? AND ex.id = ?
+        `, [student_code, id]);
+
+        if (student.length === 0) {
+            return res.status(404).json({ message: 'Étudiant non inscrit à cet examen ou code invalide' });
+        }
+        const studentId = student[0].id;
+
+        // 2. Trouver la session active pour ce surveillant
+        // On cherche une session de cet examen où ce surveillant est affecté
+        const [sessions] = await connection.query(
+            `SELECT se.id 
+             FROM session_examen se
+             INNER JOIN session_surveillant ss ON se.id = ss.idSession
+             WHERE se.idExamen = ? AND ss.idSurveillant = ?
+             LIMIT 1`,
+            [id, realIdSurveillant]
+        );
+
+        if (sessions.length === 0) {
+            return res.status(403).json({ message: 'Vous n\'êtes pas affecté à une session pour cet examen' });
+        }
+        const sessionId = sessions[0].id;
+
+        // 3. Vérifier statut actuel
+        const [emargement] = await connection.query(
+            "SELECT id, statut FROM emargement WHERE idSession = ? AND idEtudiant = ?",
+            [sessionId, studentId]
+        );
+
+        let newStatus = 'Present';
+        let message = 'Présence validée';
+
+        if (emargement.length > 0) {
+            const currentStatus = emargement[0].statut;
+            if (currentStatus === 'Present') {
+                newStatus = 'COPIE_RENDUE';
+                message = 'Copie réceptionnée';
+                // Update
+                await connection.query("UPDATE emargement SET statut = ? WHERE id = ?", [newStatus, emargement[0].id]);
+            } else if (currentStatus === 'COPIE_RENDUE') {
+                return res.status(400).json({ message: 'Copie déjà rendue' });
+            } else {
+                // Si Absent ou Inscrit -> Present
+                await connection.query("UPDATE emargement SET statut = 'Present', dateHeure = NOW(), idSurveillant = ? WHERE id = ?", [realIdSurveillant, emargement[0].id]);
+            }
+        } else {
+            // Insert
+            await connection.query(
+                "INSERT INTO emargement (idSession, idEtudiant, statut, dateHeure, idSurveillant) VALUES (?, ?, 'Present', NOW(), ?)",
+                [sessionId, studentId, realIdSurveillant]
+            );
+        }
+
+        return res.status(200).json({ 
+            message: message, 
+            student: { code: student[0].codeEtudiant, status: newStatus } 
+        });
+
+    } catch (error) {
+        console.error("Erreur scan:", error);
+        return res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    } finally {
+        connection.release();
+    }
+};

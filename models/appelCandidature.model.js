@@ -10,6 +10,7 @@ const AppelCandidature = {
         idExamen INT DEFAULT NULL,
         idUfr INT DEFAULT NULL,
         nombrePostes INT DEFAULT 1,
+        remuneration DECIMAL(10,2) DEFAULT 0,
         lieu VARCHAR(255) DEFAULT NULL,
         qualificationsRequises TEXT DEFAULT NULL,
         dateDebut DATE,

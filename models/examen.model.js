@@ -11,6 +11,7 @@ const Examen = {
         typeExamen ENUM('Devoir','Session1','Rattrapage'),
         statut ENUM('Planifie','EnCours','Termine','Annule'),
         nombrePlaces INT,
+        remuneration DECIMAL(10,2) DEFAULT 0,
         idMatiere INT,
         FOREIGN KEY (idMatiere) REFERENCES matiere(id)
       )

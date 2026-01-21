@@ -8,7 +8,7 @@ const Emargement = {
         idSession INT,
         idEtudiant INT,
         dateHeure DATETIME,
-        statut ENUM('Present','Absent'),
+        statut ENUM('INSCRIT','Present','Absent','COPIE_RENDUE') DEFAULT 'INSCRIT',
         idSurveillant INT,
         FOREIGN KEY (idSession) REFERENCES session_examen(id),
         FOREIGN KEY (idEtudiant) REFERENCES etudiant(id),

@@ -224,6 +224,76 @@ router.post('/',
 
 // ... (continuer de la même façon pour les autres routes : put, delete, sessions, get by id, get all)
 
+// ... (previous code)
+
+/**
+ * @swagger
+ * /api/examens/{id}/demarrer:
+ *   patch:
+ *     summary: Démarrer un examen (Statut -> EnCours)
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Examen démarré
+ */
+router.patch('/:id/demarrer', roleMiddleware(['SURVEILLANT', 'ADMIN', 'SUPERADMIN']), examensController.startExam);
+
+/**
+ * @swagger
+ * /api/examens/{id}/terminer:
+ *   patch:
+ *     summary: Terminer un examen (Statut -> Termine) et gérer les absences
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Examen terminé
+ */
+router.patch('/:id/terminer', roleMiddleware(['SURVEILLANT', 'ADMIN', 'SUPERADMIN']), examensController.endExam);
+
+/**
+ * @swagger
+ * /api/examens/{id}/scan:
+ *   post:
+ *     summary: Scanner un étudiant (Présent / Copie Rendue)
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               student_code:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Scan réussi
+ *       404:
+ *         description: Étudiant non trouvé ou non inscit
+ */
+router.post('/:id/scan', roleMiddleware(['SURVEILLANT', 'ADMIN', 'SUPERADMIN']), examensController.scanStudent);
+
 router.get('/:id', examensController.getById);
 router.get('/', examensController.getAll);
 

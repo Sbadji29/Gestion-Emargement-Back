@@ -87,6 +87,7 @@ async function initDatabase() {
     await Notification.createTable();
     await Inscription.createTable();
     await InscriptionMatiere.createTable();
+    await require("./models/sessionSurveillant.model").createTable();
 
 
     console.log("Toutes les tables MySQL ont été créées avec succès");
@@ -112,6 +113,8 @@ app.use('/api/salles', sallesRoutes);
 app.use('/api/sections', sectionsRoutes);
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/examens', examensRoutes);
+app.use('/api/surveillant', require('./routes/surveillant-workflow.routes'));
+app.use('/api/etudiants-lookup', require('./routes/etudiants.lookup.routes')); // specific separate route to avoid conflict or just convenient
 
 app.listen(PORT, async () => {
   console.log(`Serveur démarré sur http://localhost:${PORT}`);
