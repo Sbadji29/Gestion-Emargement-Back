@@ -19,3 +19,5 @@ router.get('/:param', roleMiddleware(['SURVEILLANT', 'ADMIN', 'SUPERADMIN']), et
 // Existing file check: There IS an etudiants.routes.js. I should probably append to it instead of creating a new one or overwriting.
 // But since I don't want to mess up existing logic without reading it fully, I will create a specific route file for lookup OR append to existing.
 // Let's check existing etudiants.routes.js first.
+
+module.exports = router;
