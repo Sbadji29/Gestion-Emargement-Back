@@ -9,7 +9,9 @@ const Surveillant = {
           telephone VARCHAR(20),
           specialite VARCHAR(100),
           disponible BOOLEAN DEFAULT 1,
-        FOREIGN KEY (idUtilisateur) REFERENCES utilisateur(idUtilisateur)
+          idUfr INT,
+        FOREIGN KEY (idUtilisateur) REFERENCES utilisateur(idUtilisateur),
+        FOREIGN KEY (idUfr) REFERENCES ufr(id)
       )
     `;
     return db.promise().query(sql);
