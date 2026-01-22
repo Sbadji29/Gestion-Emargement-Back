@@ -24,13 +24,33 @@ exports.create = async (req, res) => {
 // Lister tous les appels (avec filtres simples)
 exports.getAll = async (req, res) => {
     try {
-        const [rows] = await db.query(
-            `SELECT a.*, u.nom as createurNom, u.prenom as createurPrenom, ufr.nom as nomUfr
-       FROM appel_candidature a
-       LEFT JOIN utilisateur u ON a.idCreateur = u.idUtilisateur
-       LEFT JOIN ufr ON a.idUfr = ufr.id
-       ORDER BY a.dateCreation DESC`
-        );
+        // Si l'utilisateur est ADMIN, filtrer par son UFR
+        let rows;
+        if (req.user && req.user.role === 'ADMIN') {
+            // Récupérer l'idUfr de l'admin
+            const [adminRows] = await db.query('SELECT idUfr FROM administrateur WHERE idUtilisateur = ?', [req.user.id]);
+            if (adminRows.length === 0 || !adminRows[0].idUfr) {
+                return res.status(403).json({ message: "Administrateur sans UFR associé" });
+            }
+            const idUfr = adminRows[0].idUfr;
+            [rows] = await db.query(
+                `SELECT a.*, u.nom as createurNom, u.prenom as createurPrenom, ufr.nom as nomUfr
+                FROM appel_candidature a
+                LEFT JOIN utilisateur u ON a.idCreateur = u.idUtilisateur
+                LEFT JOIN ufr ON a.idUfr = ufr.id
+                WHERE a.idUfr = ?
+                ORDER BY a.dateCreation DESC`,
+                [idUfr]
+            );
+        } else {
+            [rows] = await db.query(
+                `SELECT a.*, u.nom as createurNom, u.prenom as createurPrenom, ufr.nom as nomUfr
+                FROM appel_candidature a
+                LEFT JOIN utilisateur u ON a.idCreateur = u.idUtilisateur
+                LEFT JOIN ufr ON a.idUfr = ufr.id
+                ORDER BY a.dateCreation DESC`
+            );
+        }
         return res.status(200).json({ message: 'Appels listés', data: rows });
     } catch (error) {
         console.error('Erreur récupération appels:', error);

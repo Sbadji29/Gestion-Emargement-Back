@@ -13,6 +13,18 @@ exports.inscription = async (req, res) => {
   try {
     const { nom, prenom, email, motDePasse, telephone, specialite } = req.body;
 
+    // Récupérer l'idUfr de l'admin créateur
+    // On suppose que req.user.id correspond à l'idUtilisateur de l'admin connecté
+    const [adminRows] = await connection.query(
+      'SELECT idUfr FROM administrateur WHERE idUtilisateur = ?',
+      [req.user.id]
+    );
+    if (adminRows.length === 0 || !adminRows[0].idUfr) {
+      await connection.rollback();
+      return res.status(400).json({ message: "Impossible de trouver l'UFR de l'administrateur créateur." });
+    }
+    const idUfr = adminRows[0].idUfr;
+
     if (!nom || !prenom || !email || !motDePasse) {
       return res.status(400).json({
         message: 'Tous les champs obligatoires doivent être remplis'
@@ -47,10 +59,12 @@ exports.inscription = async (req, res) => {
     const idUtilisateur = userResult.insertId;
 
     // Créer surveillant
+
+    // Insérer le surveillant avec l'idUfr de l'admin
     await connection.query(
-      `INSERT INTO surveillant (idUtilisateur, telephone, specialite, disponible)
-       VALUES (?, ?, ?, 1)`,
-      [idUtilisateur, telephone || null, specialite || null]
+      `INSERT INTO surveillant (idUtilisateur, telephone, specialite, disponible, idUfr)
+       VALUES (?, ?, ?, 1, ?)`,
+      [idUtilisateur, telephone || null, specialite || null, idUfr]
     );
 
     await connection.commit();

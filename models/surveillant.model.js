@@ -9,7 +9,7 @@ const Surveillant = {
           telephone VARCHAR(20),
           specialite VARCHAR(100),
           disponible BOOLEAN DEFAULT 1,
-          idUfr INT,
+          idUfr INT NOT NULL,
         FOREIGN KEY (idUtilisateur) REFERENCES utilisateur(idUtilisateur),
         FOREIGN KEY (idUfr) REFERENCES ufr(id)
       )
