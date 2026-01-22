@@ -11,10 +11,14 @@ exports.inscription = async (req, res) => {
   const connection = await db.promise().getConnection();
 
   try {
+    // Vérifier que seul un admin peut inscrire un surveillant
+    if (!req.user || req.user.role !== 'ADMIN') {
+      return res.status(403).json({ message: "Seul un administrateur peut inscrire un surveillant." });
+    }
+
     const { nom, prenom, email, motDePasse, telephone, specialite } = req.body;
 
     // Récupérer l'idUfr de l'admin créateur
-    // On suppose que req.user.id correspond à l'idUtilisateur de l'admin connecté
     const [adminRows] = await connection.query(
       'SELECT idUfr FROM administrateur WHERE idUtilisateur = ?',
       [req.user.id]
