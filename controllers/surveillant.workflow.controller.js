@@ -5,18 +5,24 @@ const db = require('../config/db');
  * Liste des appels à candidature pour lesquels le surveillant n'a pas encore postulé.
  */
 exports.getOpportunites = async (req, res) => {
+  console.log('🚀 DEBUT getOpportunites - Fonction appelée');
   try {
 
-    const userId = req.user.idUtilisateur; // ID de l'utilisateur connecté
+    const userId = req.user.id; // ID de l'utilisateur connecté
+    console.log('🔍 getOpportunites - userId:', userId);
+    
     // Récupérer l'UFR du surveillant
     const [survRows] = await db.promise().query(
       'SELECT idUfr FROM surveillant WHERE idUtilisateur = ?',
       [userId]
     );
+    console.log('🔍 getOpportunites - survRows:', survRows);
+    
     if (!survRows.length || !survRows[0].idUfr) {
       return res.status(403).json({ message: "Votre profil surveillant n'est pas associé à une UFR." });
     }
     const idUfr = survRows[0].idUfr;
+    console.log('🔍 getOpportunites - idUfr:', idUfr);
 
     const [opportunites] = await db.promise().query(
       `SELECT 
@@ -37,10 +43,13 @@ exports.getOpportunites = async (req, res) => {
       ORDER BY ac.dateCreation DESC`,
       [idUfr, userId]
     );
+    
+    console.log('✅ getOpportunites - Nombre d\'opportunités trouvées:', opportunites.length);
 
     return res.status(200).json({
       message: 'Opportunités de surveillance',
-      data: opportunites
+      data: opportunites,
+      count: opportunites.length
     });
 
   } catch (error) {
@@ -55,7 +64,8 @@ exports.getOpportunites = async (req, res) => {
  */
 exports.getMesCandidatures = async (req, res) => {
   try {
-    const userId = req.user.idUtilisateur;
+    const userId = req.user.id;
+    console.log('🔍 getMesCandidatures - userId:', userId);
 
     const [candidatures] = await db.promise().query(
       `SELECT 
@@ -73,10 +83,13 @@ exports.getMesCandidatures = async (req, res) => {
       ORDER BY c.dateSoumission DESC`,
       [userId]
     );
+    
+    console.log('✅ getMesCandidatures - Nombre de candidatures:', candidatures.length);
 
     return res.status(200).json({
       message: 'Mes candidatures',
-      data: candidatures
+      data: candidatures,
+      count: candidatures.length
     });
 
   } catch (error) {
@@ -91,7 +104,7 @@ exports.getMesCandidatures = async (req, res) => {
  */
 exports.getExamensAVenir = async (req, res) => {
   try {
-    const userId = req.user.idUtilisateur;
+    const userId = req.user.id;
 
     // Retrouver l'ID surveillant à partir de l'ID utilisateur
     const [surveillant] = await db.promise().query(
@@ -105,18 +118,7 @@ exports.getExamensAVenir = async (req, res) => {
 
     const idSurveillant = surveillant[0].id;
 
-
-    // Récupérer l'UFR du surveillant
-    const [ufrRows] = await db.promise().query(
-      'SELECT idUfr FROM surveillant WHERE id = ?',
-      [idSurveillant]
-    );
-    if (!ufrRows.length || !ufrRows[0].idUfr) {
-      return res.status(403).json({ message: "Votre profil surveillant n'est pas associé à une UFR." });
-    }
-    const idUfr = ufrRows[0].idUfr;
-
-    // Utilisation de la table de liaison session_surveillant + filtre UFR
+    // Utilisation de la table de liaison session_surveillant
     const [examens] = await db.promise().query(
       `SELECT 
         se.id as idSession,
@@ -134,9 +136,8 @@ exports.getExamensAVenir = async (req, res) => {
       INNER JOIN salle s ON se.idSalle = s.id
       WHERE ss.idSurveillant = ?
       AND e.dateExamen >= NOW()
-      AND e.idUfr = ?
       ORDER BY e.dateExamen ASC`,
-      [idSurveillant, idUfr]
+      [idSurveillant]
     );
 
     return res.status(200).json({
@@ -156,7 +157,7 @@ exports.getExamensAVenir = async (req, res) => {
  */
 exports.getDashboard = async (req, res) => {
   try {
-    const userId = req.user.idUtilisateur;
+    const userId = req.user.id;
 
     const [surveillant] = await db.promise().query(
       'SELECT id FROM surveillant WHERE idUtilisateur = ?',
@@ -210,7 +211,7 @@ exports.getDashboard = async (req, res) => {
  */
 exports.getProfil = async (req, res) => {
   try {
-    const userId = req.user.idUtilisateur;
+    const userId = req.user.id;
     const [user] = await db.promise().query(
       'SELECT idUtilisateur, nom, prenom, email, role, dateCreation FROM utilisateur WHERE idUtilisateur = ?',
       [userId]

@@ -12,12 +12,17 @@ const roleMiddleware = require('../middleware/role.middleware');
  *     description: Gestion des surveillants
  */
 
+// Routes protégées
+router.use(authMiddleware);
+
 /**
  * @swagger
  * /api/surveillants/inscription:
  *   post:
- *     summary: Auto-inscription d'un surveillant (publique)
+ *     summary: Inscription d'un surveillant par un administrateur
  *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -29,7 +34,6 @@ const roleMiddleware = require('../middleware/role.middleware');
  *               - prenom
  *               - email
  *               - motDePasse
- *               - matricule
  *             properties:
  *               nom:
  *                 type: string
@@ -38,8 +42,6 @@ const roleMiddleware = require('../middleware/role.middleware');
  *               email:
  *                 type: string
  *               motDePasse:
- *                 type: string
- *               matricule:
  *                 type: string
  *               telephone:
  *                 type: string
@@ -50,15 +52,14 @@ const roleMiddleware = require('../middleware/role.middleware');
  *         description: Inscription réussie
  *       400:
  *         $ref: '#/components/responses/ValidationError'
+ *       403:
+ *         description: Seul un administrateur peut inscrire un surveillant
  *       409:
- *         description: Email ou matricule déjà utilisé
+ *         description: Email déjà utilisé
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.post('/inscription', surveillantsController.inscription);
-
-// Routes protégées
-router.use(authMiddleware);
+router.post('/inscription', roleMiddleware(['ADMIN', 'SUPERADMIN']), surveillantsController.inscription);
 
 /**
  * @swagger

@@ -238,9 +238,10 @@ exports.createAdmin = async (req, res) => {
     };
 
     // En développement, renvoyer le mot de passe
-    if (process.env.NODE_ENV === 'development') {
+    // console.log('DEBUG: NODE_ENV is', process.env.NODE_ENV, 'Equal to development?', process.env.NODE_ENV === 'development');
+    // if (process.env.NODE_ENV === 'development') {
       response.defaultPassword = defaultPassword;
-    }
+    // }
 
     res.status(201).json(response);
   } catch (error) {
@@ -349,14 +350,21 @@ exports.createEtudiant = async (req, res) => {
 };
 
 
-// 📝 INSCRIPTION (SURVEILLANT UNIQUEMENT)
+// 📝 INSCRIPTION (SURVEILLANT PAR UN ADMIN)
 exports.register = async (req, res) => {
   const { nom, prenom, email, motDePasse, confirmMotDePasse } = req.body;
+
+  // Vérifier que l'utilisateur connecté est ADMIN ou SUPERADMIN
+  if (!req.user || (req.user.role !== 'ADMIN' && req.user.role !== 'SUPERADMIN')) {
+    return res.status(403).json({ 
+      message: "Seul un administrateur peut inscrire un surveillant" 
+    });
+  }
 
   // Validation des champs
   if (!nom || !prenom || !email || !motDePasse) {
     return res.status(400).json({ 
-      message: "Tous les champs sont obligatoires" 
+      message: "Tous les champs sont obligatoires (nom, prenom, email, motDePasse)" 
     });
   }
 
@@ -378,16 +386,63 @@ exports.register = async (req, res) => {
     });
   }
 
+  const connection = await db.promise().getConnection();
+
   try {
+    await connection.beginTransaction();
+
+    // Récupérer l'idUfr de l'admin connecté
+    let idUfr;
+    
+    if (req.user.role === 'ADMIN') {
+      const [adminRows] = await connection.query(
+        'SELECT idUfr FROM administrateur WHERE idUtilisateur = ?',
+        [req.user.id]
+      );
+      
+      if (adminRows.length === 0 || !adminRows[0].idUfr) {
+        await connection.rollback();
+        return res.status(400).json({ 
+          message: "Impossible de trouver l'UFR de l'administrateur créateur" 
+        });
+      }
+      
+      idUfr = adminRows[0].idUfr;
+    } else if (req.user.role === 'SUPERADMIN') {
+      // Pour SUPERADMIN, l'idUfr peut être fourni dans le body
+      idUfr = req.body.idUfr;
+      
+      if (!idUfr) {
+        await connection.rollback();
+        return res.status(400).json({ 
+          message: "L'ID de l'UFR est requis pour le SUPERADMIN" 
+        });
+      }
+    }
+
     // Vérifier si l'email existe déjà
-    const [existing] = await db.promise().query(
+    const [existing] = await connection.query(
       "SELECT idUtilisateur FROM utilisateur WHERE email = ?", 
-      [email]
+      [email.toLowerCase().trim()]
     );
 
     if (existing.length > 0) {
+      await connection.rollback();
       return res.status(409).json({ 
         message: "Cet email est déjà utilisé" 
+      });
+    }
+
+    // Vérifier si l'UFR existe
+    const [ufrExists] = await connection.query(
+      "SELECT id FROM ufr WHERE id = ?",
+      [idUfr]
+    );
+
+    if (ufrExists.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ 
+        message: "UFR introuvable" 
       });
     }
 
@@ -395,11 +450,11 @@ exports.register = async (req, res) => {
 
     // Créer l'utilisateur SURVEILLANT
     const sqlUser = `
-      INSERT INTO utilisateur (nom, prenom, email, motDePasse, role)
-      VALUES (?, ?, ?, ?, 'SURVEILLANT')
+      INSERT INTO utilisateur (nom, prenom, email, motDePasse, role, actif, dateCreation)
+      VALUES (?, ?, ?, ?, 'SURVEILLANT', 1, NOW())
     `;
 
-    const [resultUser] = await db.promise().query(sqlUser, [
+    const [resultUser] = await connection.query(sqlUser, [
       nom.trim(), 
       prenom.trim(), 
       email.toLowerCase().trim(), 
@@ -410,18 +465,20 @@ exports.register = async (req, res) => {
 
     // Créer l'entrée dans la table surveillant
     const sqlSurveillant = `
-      INSERT INTO surveillant (idUtilisateur)
-      VALUES (?)
+      INSERT INTO surveillant (idUtilisateur, telephone, specialite, disponible, idUfr)
+      VALUES (?, ?, ?, 1, ?)
     `;
 
-    await db.promise().query(sqlSurveillant, [idUtilisateur]);
+    await connection.query(sqlSurveillant, [idUtilisateur, null, null, idUfr]);
+
+    await connection.commit();
 
     // Générer un token pour connexion automatique après inscription
-    const user = {
+    const userForToken = {
       idUtilisateur: idUtilisateur,
       role: 'SURVEILLANT'
     };
-    const token = generateToken(user);
+    const token = generateToken(userForToken);
 
     // 📧 ENVOI EMAIL DE BIENVENUE (non bloquant)
     const userName = `${prenom.trim()} ${nom.trim()}`;
@@ -445,15 +502,20 @@ exports.register = async (req, res) => {
         nom: nom.trim(),
         prenom: prenom.trim(),
         email: email.toLowerCase().trim(),
-        role: 'SURVEILLANT'
+        role: 'SURVEILLANT',
+        idUfr: idUfr
       }
     });
   } catch (error) {
+    if (connection) await connection.rollback();
     console.error("Erreur inscription:", error);
     res.status(500).json({ 
       message: "Erreur lors de la création du compte",
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  } finally {
+    if (connection) connection.release();
   }
 };
 

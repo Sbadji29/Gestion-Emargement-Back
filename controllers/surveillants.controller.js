@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 /**
  * ============================================
@@ -11,23 +11,34 @@ exports.inscription = async (req, res) => {
   const connection = await db.promise().getConnection();
 
   try {
-    // Vérifier que seul un admin peut inscrire un surveillant
-    if (!req.user || req.user.role !== 'ADMIN') {
-      return res.status(403).json({ message: "Seul un administrateur peut inscrire un surveillant." });
+    // Vérifier que seul un admin ou superadmin peut inscrire un surveillant
+    console.log('DEBUG Inscription: req.user =', req.user);
+    if (!req.user || (req.user.role !== 'ADMIN' && req.user.role !== 'SUPERADMIN')) {
+      return res.status(403).json({ 
+        message: "Seul un administrateur peut inscrire un surveillant.",
+        debug: { role: req.user ? req.user.role : 'no user' }
+      });
     }
 
-    const { nom, prenom, email, motDePasse, telephone, specialite } = req.body;
+    const { nom, prenom, email, motDePasse, telephone, specialite, idUfr: providedIdUfr } = req.body;
+    let idUfr = providedIdUfr;
 
-    // Récupérer l'idUfr de l'admin créateur
-    const [adminRows] = await connection.query(
-      'SELECT idUfr FROM administrateur WHERE idUtilisateur = ?',
-      [req.user.id]
-    );
-    if (adminRows.length === 0 || !adminRows[0].idUfr) {
-      await connection.rollback();
-      return res.status(400).json({ message: "Impossible de trouver l'UFR de l'administrateur créateur." });
+    // Si c'est un ADMIN, on récupère son idUfr automatiquement
+    if (req.user.role === 'ADMIN') {
+      const [adminRows] = await connection.query(
+        'SELECT idUfr FROM administrateur WHERE idUtilisateur = ?',
+        [req.user.id]
+      );
+      if (adminRows.length === 0 || !adminRows[0].idUfr) {
+        return res.status(400).json({ message: "Impossible de trouver l'UFR de l'administrateur créateur." });
+      }
+      idUfr = adminRows[0].idUfr;
     }
-    const idUfr = adminRows[0].idUfr;
+
+    // Si c'est un SUPERADMIN, idUfr doit être fourni si non défini
+    if (req.user.role === 'SUPERADMIN' && !idUfr) {
+      return res.status(400).json({ message: "L'ID de l'UFR est requis pour le SUPERADMIN." });
+    }
 
     if (!nom || !prenom || !email || !motDePasse) {
       return res.status(400).json({
@@ -104,7 +115,7 @@ exports.inscription = async (req, res) => {
  */
 exports.getMonProfil = async (req, res) => {
   try {
-    const idUtilisateur = req.user.idUtilisateur;
+    const idUtilisateur = req.user.id;
 
     const [rows] = await db.promise().query(
       `SELECT 
@@ -145,7 +156,7 @@ exports.getMonProfil = async (req, res) => {
  */
 exports.updateMonProfil = async (req, res) => {
   try {
-    const idUtilisateur = req.user.idUtilisateur;
+    const idUtilisateur = req.user.id;
     const { telephone, specialite } = req.body;
 
     await db.promise().query(
@@ -170,7 +181,7 @@ exports.updateMonProfil = async (req, res) => {
  */
 exports.getMesAffectations = async (req, res) => {
   try {
-    const idUtilisateur = req.user.idUtilisateur;
+    const idUtilisateur = req.user.id;
 
     const [[surveillant]] = await db.promise().query(
       'SELECT id FROM surveillant WHERE idUtilisateur = ?',
@@ -219,7 +230,7 @@ exports.getMesAffectations = async (req, res) => {
  */
 exports.updateDisponibilite = async (req, res) => {
   try {
-    const idUtilisateur = req.user.idUtilisateur;
+    const idUtilisateur = req.user.id;
     const { disponible } = req.body;
 
     await db.promise().query(
