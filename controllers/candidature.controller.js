@@ -8,10 +8,20 @@ exports.apply = async (req, res) => {
         const { nom, prenom, email, telephone, disponibilites, lettreMotivation } = req.body;
         // Note: CV upload removed — no file handling here.
 
+
         // Vérifier que l'appel existe et est ouvert
         const [appel] = await db.query('SELECT * FROM appel_candidature WHERE id = ?', [idAppel]);
         if (appel.length === 0) return res.status(404).json({ message: 'Appel introuvable' });
         if (appel[0].statut !== 'Ouvert') return res.status(400).json({ message: 'Appel non ouvert' });
+
+        // Vérifier que l'appel correspond à l'UFR du surveillant
+        const [survUfrRows] = await db.query('SELECT idUfr FROM surveillant WHERE idUtilisateur = ?', [userId]);
+        if (survUfrRows.length === 0 || !survUfrRows[0].idUfr) {
+            return res.status(403).json({ message: "Votre profil surveillant n'est pas associé à une UFR." });
+        }
+        if (appel[0].idUfr !== survUfrRows[0].idUfr) {
+            return res.status(403).json({ message: "Vous ne pouvez postuler qu'aux appels de votre UFR." });
+        }
 
         // Vérifier que l'utilisateur a un compte actif et est bien un surveillant enregistré
         const [userRows] = await db.query('SELECT actif, email FROM utilisateur WHERE idUtilisateur = ?', [userId]);

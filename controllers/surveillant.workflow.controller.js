@@ -6,7 +6,17 @@ const db = require('../config/db');
  */
 exports.getOpportunites = async (req, res) => {
   try {
+
     const userId = req.user.idUtilisateur; // ID de l'utilisateur connecté
+    // Récupérer l'UFR du surveillant
+    const [survRows] = await db.promise().query(
+      'SELECT idUfr FROM surveillant WHERE idUtilisateur = ?',
+      [userId]
+    );
+    if (!survRows.length || !survRows[0].idUfr) {
+      return res.status(403).json({ message: "Votre profil surveillant n'est pas associé à une UFR." });
+    }
+    const idUfr = survRows[0].idUfr;
 
     const [opportunites] = await db.promise().query(
       `SELECT 
@@ -20,11 +30,12 @@ exports.getOpportunites = async (req, res) => {
       LEFT JOIN examen e ON ac.idExamen = e.id
       LEFT JOIN ufr ON ac.idUfr = ufr.id
       WHERE ac.statut = 'Ouvert'
+      AND ac.idUfr = ?
       AND ac.id NOT IN (
         SELECT idAppel FROM candidature WHERE idUtilisateur = ?
       )
       ORDER BY ac.dateCreation DESC`,
-      [userId]
+      [idUfr, userId]
     );
 
     return res.status(200).json({
@@ -89,12 +100,23 @@ exports.getExamensAVenir = async (req, res) => {
     );
 
     if (surveillant.length === 0) {
-        return res.status(404).json({ message: 'Profil surveillant non trouvé' });
+      return res.status(404).json({ message: 'Profil surveillant non trouvé' });
     }
 
     const idSurveillant = surveillant[0].id;
 
-    // Mise à jour : Utilisation de la table de liaison session_surveillant
+
+    // Récupérer l'UFR du surveillant
+    const [ufrRows] = await db.promise().query(
+      'SELECT idUfr FROM surveillant WHERE id = ?',
+      [idSurveillant]
+    );
+    if (!ufrRows.length || !ufrRows[0].idUfr) {
+      return res.status(403).json({ message: "Votre profil surveillant n'est pas associé à une UFR." });
+    }
+    const idUfr = ufrRows[0].idUfr;
+
+    // Utilisation de la table de liaison session_surveillant + filtre UFR
     const [examens] = await db.promise().query(
       `SELECT 
         se.id as idSession,
@@ -112,8 +134,9 @@ exports.getExamensAVenir = async (req, res) => {
       INNER JOIN salle s ON se.idSalle = s.id
       WHERE ss.idSurveillant = ?
       AND e.dateExamen >= NOW()
+      AND e.idUfr = ?
       ORDER BY e.dateExamen ASC`,
-      [idSurveillant]
+      [idSurveillant, idUfr]
     );
 
     return res.status(200).json({
@@ -141,7 +164,7 @@ exports.getDashboard = async (req, res) => {
     );
 
     if (surveillant.length === 0) {
-        return res.status(404).json({ message: 'Profil surveillant non trouvé' });
+      return res.status(404).json({ message: 'Profil surveillant non trouvé' });
     }
     const idSurveillant = surveillant[0].id;
 
@@ -153,18 +176,18 @@ exports.getDashboard = async (req, res) => {
        INNER JOIN examen e ON se.idExamen = e.id
        WHERE ss.idSurveillant = ?
        AND e.statut = 'Termine'`,
-       [idSurveillant]
+      [idSurveillant]
     );
 
     // 2. Prochains examens
     const [prochains] = await db.promise().query(
-        `SELECT e.codeExamen, e.dateExamen 
+      `SELECT e.codeExamen, e.dateExamen 
          FROM session_examen se 
          INNER JOIN session_surveillant ss ON se.id = ss.idSession
          JOIN examen e ON se.idExamen = e.id 
          WHERE ss.idSurveillant = ? AND e.dateExamen > NOW() 
          ORDER BY e.dateExamen LIMIT 3`,
-         [idSurveillant]
+      [idSurveillant]
     );
 
     return res.status(200).json({
@@ -186,20 +209,20 @@ exports.getDashboard = async (req, res) => {
  * GET /surveillant/profil
  */
 exports.getProfil = async (req, res) => {
-    try {
-        const userId = req.user.idUtilisateur;
-        const [user] = await db.promise().query(
-            'SELECT idUtilisateur, nom, prenom, email, role, dateCreation FROM utilisateur WHERE idUtilisateur = ?',
-            [userId]
-        );
+  try {
+    const userId = req.user.idUtilisateur;
+    const [user] = await db.promise().query(
+      'SELECT idUtilisateur, nom, prenom, email, role, dateCreation FROM utilisateur WHERE idUtilisateur = ?',
+      [userId]
+    );
 
-        if (user.length === 0) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    if (user.length === 0) return res.status(404).json({ message: 'Utilisateur non trouvé' });
 
-        return res.status(200).json({
-            message: 'Profil utilisateur',
-            data: user[0]
-        });
-    } catch (error) {
-        return res.status(500).json({ message: 'Erreur serveur', error: error.message });
-    }
+    return res.status(200).json({
+      message: 'Profil utilisateur',
+      data: user[0]
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
 };
