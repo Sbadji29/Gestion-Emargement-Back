@@ -36,8 +36,6 @@ const roleMiddleware = require('../middleware/role.middleware');
  *             required:
  *               - idExamen
  *               - idSalle
- *               - heureDebut
- *               - heureFin
  *             properties:
  *               idExamen:
  *                 type: integer
@@ -45,10 +43,11 @@ const roleMiddleware = require('../middleware/role.middleware');
  *               idSalle:
  *                 type: integer
  *                 description: ID de la salle
- *               idSurveillant:
- *                 type: integer
- *                 nullable: true
- *                 description: ID du surveillant (optionnel)
+ *               surveillants:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *                 description: Tableau des IDs des surveillants (optionnel)
  *               heureDebut:
  *                 type: string
  *                 format: date-time
@@ -76,14 +75,17 @@ const roleMiddleware = require('../middleware/role.middleware');
  *                       type: integer
  *                     idSalle:
  *                       type: integer
- *                     idSurveillant:
- *                       type: integer
- *                       nullable: true
+ *                     surveillants:
+ *                       type: array
+ *                       items:
+ *                         type: integer
  *                     heureDebut:
  *                       type: string
+ *                       nullable: true
  *                       format: date-time
  *                     heureFin:
  *                       type: string
+ *                       nullable: true
  *                       format: date-time
  *                     nombreInscrits:
  *                       type: integer
@@ -96,13 +98,11 @@ const roleMiddleware = require('../middleware/role.middleware');
  *             schema:
  *               $ref: '#/components/schemas/Error'
  *       404:
- *         description: Examen ou salle non trouvé(e)
- *       409:
- *         description: Conflit de disponibilité (salle ou surveillant déjà réservé)
+ *         description: Examen, salle ou surveill ant non trouvé(e)
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.post('/sessions',
+router.post('/',
   roleMiddleware(['ADMIN', 'SUPERADMIN']),
   sessionsController.createSession
 );
@@ -177,7 +177,7 @@ router.post('/sessions',
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.get('/sessions/:id', sessionsController.getSessionById);
+router.get('/:id', sessionsController.getSessionById);
 
 /**
  * @swagger
@@ -251,11 +251,108 @@ router.get('/sessions/:id', sessionsController.getSessionById);
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.get('/sessions', sessionsController.getAllSessions);
+router.get('/', sessionsController.getAllSessions);
 
 /**
  * @swagger
- * /api/examens/sessions/{id}:
+ * /api/sessions/{id}/start:
+ *   patch:
+ *     summary: Démarrer une session d'examen
+ *     description: Capture l'heure actuelle comme heureDebut de la session
+ *     tags: [Sessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la session
+ *     responses:
+ *       200:
+ *         description: Session démarrée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Session démarrée avec succès
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     idSession:
+ *                       type: integer
+ *                     heureDebut:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: La session a déjà démarré
+ *       404:
+ *         description: Session non trouvée
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
+router.patch('/:id/start', 
+  roleMiddleware(['ADMIN', 'SUPERADMIN', 'SURVEILLANT']), 
+  sessionsController.startSession
+);
+
+/**
+ * @swagger
+ * /api/sessions/{id}/end:
+ *   patch:
+ *     summary: Terminer une session d'examen
+ *     description: Capture l'heure actuelle comme heureFin et libère la salle
+ *     tags: [Sessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la session
+ *     responses:
+ *       200:
+ *         description: Session terminée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Session terminée avec succès
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     idSession:
+ *                       type: integer
+ *                     heureDebut:
+ *                       type: string
+ *                       format: date-time
+ *                     heureFin:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: La session n'a pas démarré ou est déjà terminée
+ *       404:
+ *         description: Session non trouvée
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
+router.patch('/:id/end', 
+  roleMiddleware(['ADMIN', 'SUPERADMIN', 'SURVEILLANT']), 
+  sessionsController.endSession
+);
+
+/**
+ * @swagger
+ * /api/sessions/{id}:
  *   delete:
  *     summary: Supprimer une session d'examen par ID
  *     tags: [Sessions]
@@ -280,6 +377,6 @@ router.get('/sessions', sessionsController.getAllSessions);
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.delete('/sessions/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), sessionsController.deleteSession);
+router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), sessionsController.deleteSession);
 
 module.exports = router;

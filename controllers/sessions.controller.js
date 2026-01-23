@@ -11,12 +11,12 @@ exports.createSession = async (req, res) => {
   const connection = await db.getConnection();
 
   try {
-    const { idExamen, idSalle, surveillants, heureDebut, heureFin } = req.body;
+    const { idExamen, idSalle, surveillants } = req.body;
 
     // Validation
-    if (!idExamen || !idSalle || !heureDebut || !heureFin) {
+    if (!idExamen || !idSalle) {
       return res.status(400).json({
-        message: 'idExamen, idSalle, heureDebut et heureFin sont obligatoires'
+        message: 'idExamen et idSalle sont obligatoires'
       });
     }
 
@@ -35,56 +35,9 @@ exports.createSession = async (req, res) => {
       });
     }
 
-    // 2. Vérifier disponibilité de la salle pour le créneau
-    const dateDebut = new Date(heureDebut);
-    const date = dateDebut.toISOString().split('T')[0];
-
-    const [salleConflicts] = await connection.query(
-      `SELECT id FROM session_examen 
-       WHERE idSalle = ?
-       AND DATE(heureDebut) = ?
-       AND (
-         (heureDebut <= ? AND heureFin > ?)
-         OR (heureDebut < ? AND heureFin >= ?)
-         OR (heureDebut >= ? AND heureFin <= ?)
-       )`,
-      [idSalle, date, heureDebut, heureDebut, heureFin, heureFin, heureDebut, heureFin]
-    );
-
-    if (salleConflicts.length > 0) {
-      await connection.rollback();
-      return res.status(409).json({
-        message: 'La salle n\'est pas disponible pour ce créneau'
-      });
-    }
-
-
-    // 3. Vérifier disponibilité des surveillants (si fournis)
-    if (Array.isArray(surveillants) && surveillants.length > 0) {
-      for (const idSurveillant of surveillants) {
-        const [surveillantConflicts] = await connection.query(
-          `SELECT id FROM session_examen 
-           WHERE idSurveillant = ?
-           AND DATE(heureDebut) = ?
-           AND (
-             (heureDebut <= ? AND heureFin > ?)
-             OR (heureDebut < ? AND heureFin >= ?)
-             OR (heureDebut >= ? AND heureFin <= ?)
-           )`,
-          [idSurveillant, date, heureDebut, heureDebut, heureFin, heureFin, heureDebut, heureFin]
-        );
-        if (surveillantConflicts.length > 0) {
-          await connection.rollback();
-          return res.status(409).json({
-            message: `Le surveillant ${idSurveillant} n'est pas disponible pour ce créneau`
-          });
-        }
-      }
-    }
-
-    // 4. Récupérer capacité de la salle
+    // 2. Vérifier que la salle existe et récupérer sa capacité
     const [salle] = await connection.query(
-      'SELECT capacite FROM salle WHERE id = ?',
+      'SELECT id, capacite FROM salle WHERE id = ?',
       [idSalle]
     );
 
@@ -95,7 +48,24 @@ exports.createSession = async (req, res) => {
       });
     }
 
-    // 5. Calculer nombre d'inscrits (via inscription_matiere)
+    // 3. Vérifier que les surveillants existent (si fournis)
+    if (Array.isArray(surveillants) && surveillants.length > 0) {
+      for (const idSurveillant of surveillants) {
+        const [survExists] = await connection.query(
+          'SELECT id FROM surveillant WHERE id = ?',
+          [idSurveillant]
+        );
+        
+        if (survExists.length === 0) {
+          await connection.rollback();
+          return res.status(404).json({
+            message: `Surveillant ${idSurveillant} non trouvé`
+          });
+        }
+      }
+    }
+
+    // 4. Calculer nombre d'inscrits (via inscription_matiere)
     const [inscrits] = await connection.query(
       `SELECT COUNT(DISTINCT i.idEtudiant) as count
        FROM inscription_matiere im
@@ -106,7 +76,7 @@ exports.createSession = async (req, res) => {
 
     const nombreInscrits = inscrits[0].count;
 
-    // 6. Vérifier que la capacité est suffisante
+    // 5. Vérifier que la capacité est suffisante
     if (nombreInscrits > salle[0].capacite) {
       await connection.rollback();
       return res.status(400).json({
@@ -115,15 +85,15 @@ exports.createSession = async (req, res) => {
     }
 
 
-    // 7. Créer la session (idSurveillant mis à NULL, car géré dans la table de liaison)
+    // 6. Créer la session (heureDebut et heureFin sont NULL au départ)
     const [result] = await connection.query(
       `INSERT INTO session_examen 
-       (idExamen, idSalle, idSurveillant, heureDebut, heureFin, nombreInscrits, nombrePresents) 
-       VALUES (?, ?, NULL, ?, ?, ?, 0)`,
-      [idExamen, idSalle, heureDebut, heureFin, nombreInscrits]
+       (idExamen, idSalle, heureDebut, heureFin, nombreInscrits, nombrePresents) 
+       VALUES (?, ?, NULL, NULL, ?, 0)`,
+      [idExamen, idSalle, nombreInscrits]
     );
 
-    // 7b. Ajouter les surveillants dans la table de liaison
+    // 7. Ajouter les surveillants dans la table de liaison
     if (Array.isArray(surveillants) && surveillants.length > 0) {
       await SessionSurveillant.addSurveillants(result.insertId, surveillants);
     }
@@ -144,9 +114,9 @@ exports.createSession = async (req, res) => {
         idExamen,
         idSalle,
         surveillants,
-        heureDebut,
-        heureFin,
         nombreInscrits,
+        heureDebut: null,
+        heureFin: null,
         capaciteSalle: salle[0].capacite
       }
     });
@@ -242,14 +212,14 @@ exports.getAllSessions = async (req, res) => {
         c.nomClasse,
         s.numero as salle,
         s.batiment,
-        u.nom as nomSurveillant,
-        u.prenom as prenomSurveillant
+        GROUP_CONCAT(CONCAT(u.nom, ' ', u.prenom) SEPARATOR ', ') as surveillants
       FROM session_examen se
       INNER JOIN examen e ON se.idExamen = e.id
       LEFT JOIN matiere m ON e.idMatiere = m.id
       LEFT JOIN classe c ON m.idClasse = c.id
       LEFT JOIN salle s ON se.idSalle = s.id
-      LEFT JOIN surveillant surv ON se.idSurveillant = surv.id
+      LEFT JOIN session_surveillant ss ON se.id = ss.idSession
+      LEFT JOIN surveillant surv ON ss.idSurveillant = surv.id
       LEFT JOIN utilisateur u ON surv.idUtilisateur = u.idUtilisateur
     `;
 
@@ -270,7 +240,7 @@ exports.getAllSessions = async (req, res) => {
       query += ' WHERE ' + conditions.join(' AND ');
     }
 
-    query += ' ORDER BY se.heureDebut DESC';
+    query += ' GROUP BY se.id ORDER BY se.heureDebut DESC';
 
     const [sessions] = await db.query(query, params);
 
@@ -297,7 +267,7 @@ exports.deleteSession = async (req, res) => {
     const { id } = req.params;
 
     // Vérifier si la session existe
-    const [rows] = await db.promise().query(
+    const [rows] = await db.query(
       'SELECT id FROM session_examen WHERE id = ?',
       [id]
     );
@@ -306,7 +276,7 @@ exports.deleteSession = async (req, res) => {
     }
 
     // Suppression
-    await db.promise().query(
+    await db.query(
       'DELETE FROM session_examen WHERE id = ?',
       [id]
     );
@@ -318,6 +288,140 @@ exports.deleteSession = async (req, res) => {
     console.error('Erreur suppression session:', error);
     return res.status(500).json({
       message: "Erreur lors de la suppression de la session",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Démarrer une session d'examen (capture heureDebut)
+ * PATCH /api/sessions/:id/start
+ */
+exports.startSession = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const heureDebut = new Date();
+
+    // Vérifier que la session existe
+    const [session] = await db.query(
+      'SELECT id, heureDebut FROM session_examen WHERE id = ?',
+      [id]
+    );
+
+    if (session.length === 0) {
+      return res.status(404).json({
+        message: 'Session non trouvée'
+      });
+    }
+
+    // Vérifier que la session n'a pas déjà démarré
+    if (session[0].heureDebut) {
+      return res.status(400).json({
+        message: 'La session a déjà démarré',
+        heureDebut: session[0].heureDebut
+      });
+    }
+
+    // Mettre à jour heureDebut
+    await db.query(
+      'UPDATE session_examen SET heureDebut = ? WHERE id = ?',
+      [heureDebut, id]
+    );
+
+    return res.status(200).json({
+      message: 'Session démarrée avec succès',
+      data: {
+        idSession: id,
+        heureDebut
+      }
+    });
+  } catch (error) {
+    console.error('Erreur démarrage session:', error);
+    return res.status(500).json({
+      message: 'Erreur lors du démarrage de la session',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Terminer une session d'examen (capture heureFin)
+ * PATCH /api/sessions/:id/end
+ */
+exports.endSession = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const heureFin = new Date();
+
+    // Vérifier que la session existe
+    const [session] = await db.query(
+      'SELECT id, heureDebut, heureFin FROM session_examen WHERE id = ?',
+      [id]
+    );
+
+    if (session.length === 0) {
+      return res.status(404).json({
+        message: 'Session non trouvée'
+      });
+    }
+
+    // Vérifier que la session a bien démarré
+    if (!session[0].heureDebut) {
+      return res.status(400).json({
+        message: 'La session n\'a pas encore démarré'
+      });
+    }
+
+    // Vérifier que la session n'est pas déjà terminée
+    if (session[0].heureFin) {
+      return res.status(400).json({
+        message: 'La session est déjà terminée',
+        heureFin: session[0].heureFin
+      });
+    }
+
+    // Mettre à jour heureFin et libérer la salle
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      await connection.query(
+        'UPDATE session_examen SET heureFin = ? WHERE id = ?',
+        [heureFin, id]
+      );
+
+      // Récupérer l'idSalle pour la libérer
+      const [sessionData] = await connection.query(
+        'SELECT idSalle FROM session_examen WHERE id = ?',
+        [id]
+      );
+
+      // Libérer la salle
+      await connection.query(
+        "UPDATE salle SET statut = 'Disponible' WHERE id = ?",
+        [sessionData[0].idSalle]
+      );
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    return res.status(200).json({
+      message: 'Session terminée avec succès',
+      data: {
+        idSession: id,
+        heureDebut: session[0].heureDebut,
+        heureFin
+      }
+    });
+  } catch (error) {
+    console.error('Erreur fin session:', error);
+    return res.status(500).json({
+      message: 'Erreur lors de la fin de la session',
       error: error.message
     });
   }
