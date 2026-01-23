@@ -1,5 +1,3 @@
-// Supprimer un examen par ID
-router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), examensController.delete);
 // routes/examens.routes.js
 const express = require('express');
 const router = express.Router();
@@ -295,6 +293,35 @@ router.patch('/:id/terminer', roleMiddleware(['SURVEILLANT', 'ADMIN', 'SUPERADMI
  *         description: Étudiant non trouvé ou non inscit
  */
 router.post('/:id/scan', roleMiddleware(['SURVEILLANT', 'ADMIN', 'SUPERADMIN']), examensController.scanStudent);
+
+/**
+ * @swagger
+ * /api/examens/{id}:
+ *   delete:
+ *     summary: Supprimer un examen par ID
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de l'examen
+ *     responses:
+ *       200:
+ *         description: Examen supprimé avec succès
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès refusé (rôle insuffisant)
+ *       404:
+ *         description: Examen introuvable
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
+router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), examensController.delete);
 
 router.get('/:id', examensController.getById);
 router.get('/', examensController.getAll);

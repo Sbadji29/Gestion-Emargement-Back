@@ -1,5 +1,3 @@
-// Supprimer un étudiant par ID
-router.delete('/:id', etudiantsController.delete);
 // routes/etudiants.routes.js
 const express = require('express');
 const router = express.Router();
@@ -339,5 +337,30 @@ router.get('/ufr', etudiantsController.getByAdminUfr);
  *                   type: string
  */
 router.get('/classe/:idClasse', etudiantsController.getByClasse);
+
+/**
+ * @swagger
+ * /api/etudiants/{id}:
+ *   delete:
+ *     summary: Supprimer un étudiant par ID
+ *     tags: [Étudiants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de l'étudiant
+ *     responses:
+ *       200:
+ *         description: Étudiant supprimé avec succès
+ *       404:
+ *         description: Étudiant introuvable
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
+router.delete('/:id', etudiantsController.delete);
 
 module.exports = router;

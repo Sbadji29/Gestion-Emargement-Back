@@ -1,5 +1,3 @@
-// Supprimer un surveillant par ID utilisateur
-router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), surveillantsController.deleteSurveillant);
 // routes/surveillants.routes.js
 const express = require('express');
 const router = express.Router();
@@ -240,5 +238,34 @@ router.get('/statistics',
   roleMiddleware(['ADMIN', 'SUPERADMIN']),
   surveillantsController.getStatistics
 );
+
+/**
+ * @swagger
+ * /api/surveillants/{id}:
+ *   delete:
+ *     summary: Supprimer un surveillant par ID utilisateur
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de l'utilisateur surveillant
+ *     responses:
+ *       200:
+ *         description: Surveillant supprimé avec succès
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès refusé (rôle insuffisant)
+ *       404:
+ *         description: Surveillant introuvable
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
+router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), surveillantsController.deleteSurveillant);
 
 module.exports = router;

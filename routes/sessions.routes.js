@@ -1,5 +1,3 @@
-// Supprimer une session d'examen par ID
-router.delete('/sessions/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), sessionsController.deleteSession);
 // routes/sessions.routes.js (si séparé)
 const express = require('express');
 const router = express.Router();
@@ -254,5 +252,34 @@ router.get('/sessions/:id', sessionsController.getSessionById);
  *         $ref: '#/components/schemas/Error'
  */
 router.get('/sessions', sessionsController.getAllSessions);
+
+/**
+ * @swagger
+ * /api/examens/sessions/{id}:
+ *   delete:
+ *     summary: Supprimer une session d'examen par ID
+ *     tags: [Sessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la session
+ *     responses:
+ *       200:
+ *         description: Session supprimée avec succès
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès refusé (rôle insuffisant)
+ *       404:
+ *         description: Session introuvable
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
+router.delete('/sessions/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), sessionsController.deleteSession);
 
 module.exports = router;

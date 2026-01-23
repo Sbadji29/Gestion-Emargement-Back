@@ -1,5 +1,3 @@
-// Supprimer une candidature par ID
-router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), candidatureController.delete);
 // routes/candidature.routes.js
 const express = require('express');
 const router = express.Router();
@@ -440,5 +438,35 @@ router.get('/me', roleMiddleware(['SURVEILLANT']), candidatureController.getMyAp
  *         description: Erreur serveur
  */
 router.patch('/:id/status', roleMiddleware(['ADMIN', 'SUPERADMIN']), candidatureController.updateStatus);
+
+/**
+ * @swagger
+ * /api/candidatures/{id}:
+ *   delete:
+ *     summary: Supprimer une candidature par ID
+ *     description: Permet aux administrateurs de supprimer une candidature
+ *     tags: [Candidatures]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la candidature
+ *     responses:
+ *       200:
+ *         description: Candidature supprimée avec succès
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès refusé (rôle insuffisant)
+ *       404:
+ *         description: Candidature introuvable
+ *       500:
+ *         description: Erreur serveur
+ */
+router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), candidatureController.delete);
 
 module.exports = router;

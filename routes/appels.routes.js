@@ -1,5 +1,3 @@
-// Supprimer un appel de candidature par ID
-router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), appelController.delete);
 // routes/appels.routes.js
 const express = require('express');
 const router = express.Router();
@@ -395,5 +393,35 @@ router.get('/:id/stats', roleMiddleware(['ADMIN', 'SUPERADMIN']), appelControlle
  *         description: Erreur serveur
  */
 router.get('/:id', appelController.getById);
+
+/**
+ * @swagger
+ * /api/appels/{id}:
+ *   delete:
+ *     summary: Supprimer un appel de candidature par ID
+ *     description: Permet aux administrateurs de supprimer un appel de candidature
+ *     tags: [Appels de Candidature]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de l'appel de candidature
+ *     responses:
+ *       200:
+ *         description: Appel supprimé avec succès
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès refusé (rôle insuffisant)
+ *       404:
+ *         description: Appel introuvable
+ *       500:
+ *         description: Erreur serveur
+ */
+router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), appelController.delete);
 
 module.exports = router;
