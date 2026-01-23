@@ -1,3 +1,18 @@
+// Supprimer une candidature par ID
+exports.delete = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Vérifier si la candidature existe
+        const [rows] = await db.query('SELECT id FROM candidature WHERE id = ?', [id]);
+        if (rows.length === 0) return res.status(404).json({ message: 'Candidature introuvable' });
+        // Suppression
+        await db.query('DELETE FROM candidature WHERE id = ?', [id]);
+        return res.status(200).json({ message: 'Candidature supprimée avec succès' });
+    } catch (error) {
+        console.error('Erreur suppression candidature:', error);
+        return res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    }
+};
 const db = require('../config/db.config');
 
 // Surveillant postule à un appel (upload CV optionnel)

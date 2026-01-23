@@ -245,3 +245,38 @@ exports.getStatistics = async (req, res) => {
     });
   }
 };
+
+/**
+ * US-U5 : Supprimer un utilisateur par ID
+ * DELETE /api/utilisateurs/:id
+ */
+exports.deleteUtilisateur = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Vérifier si l'utilisateur existe
+    const [users] = await db.promise().query(
+      'SELECT idUtilisateur FROM utilisateur WHERE idUtilisateur = ?',
+      [id]
+    );
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+
+    // Suppression
+    await db.promise().query(
+      'DELETE FROM utilisateur WHERE idUtilisateur = ?',
+      [id]
+    );
+
+    return res.status(200).json({
+      message: 'Utilisateur supprimé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur suppression utilisateur:', error);
+    return res.status(500).json({
+      message: "Erreur lors de la suppression de l'utilisateur",
+      error: error.message
+    });
+  }
+};

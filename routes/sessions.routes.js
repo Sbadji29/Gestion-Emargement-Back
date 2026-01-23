@@ -1,3 +1,5 @@
+// Supprimer une session d'examen par ID
+router.delete('/sessions/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), sessionsController.deleteSession);
 // routes/sessions.routes.js (si séparé)
 const express = require('express');
 const router = express.Router();
@@ -102,8 +104,8 @@ const roleMiddleware = require('../middleware/role.middleware');
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.post('/sessions', 
-  roleMiddleware(['ADMIN', 'SUPERADMIN']), 
+router.post('/sessions',
+  roleMiddleware(['ADMIN', 'SUPERADMIN']),
   sessionsController.createSession
 );
 

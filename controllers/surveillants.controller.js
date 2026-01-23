@@ -1,3 +1,42 @@
+/**
+ * Supprimer un surveillant par ID utilisateur
+ * DELETE /api/surveillants/:id
+ */
+exports.deleteSurveillant = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Vérifier si le surveillant existe
+    const [rows] = await db.promise().query(
+      'SELECT idUtilisateur FROM surveillant WHERE idUtilisateur = ?',
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Surveillant non trouvé' });
+    }
+
+    // Supprimer le surveillant (table surveillant)
+    await db.promise().query(
+      'DELETE FROM surveillant WHERE idUtilisateur = ?',
+      [id]
+    );
+    // Supprimer l'utilisateur (table utilisateur)
+    await db.promise().query(
+      'DELETE FROM utilisateur WHERE idUtilisateur = ?',
+      [id]
+    );
+
+    return res.status(200).json({
+      message: 'Surveillant supprimé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur suppression surveillant:', error);
+    return res.status(500).json({
+      message: "Erreur lors de la suppression du surveillant",
+      error: error.message
+    });
+  }
+};
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
 

@@ -1,3 +1,5 @@
+// Supprimer un examen par ID
+router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), examensController.delete);
 // routes/examens.routes.js
 const express = require('express');
 const router = express.Router();
@@ -169,8 +171,8 @@ router.get('/:id/candidats', examensController.getCandidats);
  *       - ADMIN
  *       - SUPERADMIN
  */
-router.patch('/:id/statut', 
-  roleMiddleware(['SURVEILLANT', 'ADMIN', 'SUPERADMIN']), 
+router.patch('/:id/statut',
+  roleMiddleware(['SURVEILLANT', 'ADMIN', 'SUPERADMIN']),
   examensController.updateStatut
 );
 
@@ -217,8 +219,8 @@ router.patch('/:id/statut',
  *       - ADMIN
  *       - SUPERADMIN
  */
-router.post('/', 
-  roleMiddleware(['ADMIN', 'SUPERADMIN']), 
+router.post('/',
+  roleMiddleware(['ADMIN', 'SUPERADMIN']),
   examensController.create
 );
 

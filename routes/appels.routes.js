@@ -1,3 +1,5 @@
+// Supprimer un appel de candidature par ID
+router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), appelController.delete);
 // routes/appels.routes.js
 const express = require('express');
 const router = express.Router();

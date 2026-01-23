@@ -345,6 +345,10 @@ router.get('/count/by-role', utilisateursController.countByRole);
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
+
+// Supprimer un utilisateur par ID
+router.delete('/:id', utilisateursController.deleteUtilisateur);
+
 router.get('/:id', utilisateursController.getUtilisateurById);
 
 module.exports = router;

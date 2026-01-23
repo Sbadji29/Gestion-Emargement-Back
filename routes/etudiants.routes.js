@@ -1,3 +1,5 @@
+// Supprimer un étudiant par ID
+router.delete('/:id', etudiantsController.delete);
 // routes/etudiants.routes.js
 const express = require('express');
 const router = express.Router();

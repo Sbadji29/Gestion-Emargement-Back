@@ -7,7 +7,7 @@ const db = require('../config/db');
  */
 exports.createSession = async (req, res) => {
   const connection = await db.getConnection();
-  
+
   try {
     const { idExamen, idSalle, idSurveillant, heureDebut, heureFin } = req.body;
 
@@ -36,7 +36,7 @@ exports.createSession = async (req, res) => {
     // 2. Vérifier disponibilité de la salle pour le créneau
     const dateDebut = new Date(heureDebut);
     const date = dateDebut.toISOString().split('T')[0];
-    
+
     const [salleConflicts] = await connection.query(
       `SELECT id FROM session_examen 
        WHERE idSalle = ?
@@ -210,7 +210,7 @@ exports.getSessionById = async (req, res) => {
 exports.getAllSessions = async (req, res) => {
   try {
     const { date, statut } = req.query;
-    
+
     let query = `
       SELECT 
         se.*,
@@ -262,6 +262,41 @@ exports.getAllSessions = async (req, res) => {
     console.error('Erreur récupération sessions:', error);
     return res.status(500).json({
       message: 'Erreur lors de la récupération des sessions',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Supprimer une session d'examen par ID
+ * DELETE /api/sessions/:id
+ */
+exports.deleteSession = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Vérifier si la session existe
+    const [rows] = await db.promise().query(
+      'SELECT id FROM session_examen WHERE id = ?',
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Session non trouvée' });
+    }
+
+    // Suppression
+    await db.promise().query(
+      'DELETE FROM session_examen WHERE id = ?',
+      [id]
+    );
+
+    return res.status(200).json({
+      message: 'Session supprimée avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur suppression session:', error);
+    return res.status(500).json({
+      message: "Erreur lors de la suppression de la session",
       error: error.message
     });
   }

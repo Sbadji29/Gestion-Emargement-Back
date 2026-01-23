@@ -1,3 +1,5 @@
+// Supprimer une candidature par ID
+router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), candidatureController.delete);
 // routes/candidature.routes.js
 const express = require('express');
 const router = express.Router();

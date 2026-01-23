@@ -1,3 +1,18 @@
+// Supprimer un étudiant par ID
+exports.delete = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Vérifier si l'étudiant existe
+    const [rows] = await db.promise().query('SELECT id FROM etudiant WHERE id = ?', [id]);
+    if (rows.length === 0) return res.status(404).json({ message: 'Étudiant introuvable' });
+    // Suppression
+    await db.promise().query('DELETE FROM etudiant WHERE id = ?', [id]);
+    return res.status(200).json({ message: 'Étudiant supprimé avec succès' });
+  } catch (error) {
+    console.error('Erreur suppression étudiant:', error);
+    return res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
 // controllers/etudiants.controller.js
 const db = require('../config/db');
 
@@ -209,8 +224,8 @@ exports.getByAdminUfr = async (req, res) => {
     );
 
     if (adminRows.length === 0 || !adminRows[0].idUfr) {
-      return res.status(404).json({ 
-        message: "Administrateur ou UFR introuvable" 
+      return res.status(404).json({
+        message: "Administrateur ou UFR introuvable"
       });
     }
 
@@ -240,16 +255,16 @@ exports.getByAdminUfr = async (req, res) => {
       [idUfr]
     );
 
-    return res.status(200).json({ 
-      message: 'Étudiants de l\'UFR de l\'admin', 
-      data: etudiants 
+    return res.status(200).json({
+      message: 'Étudiants de l\'UFR de l\'admin',
+      data: etudiants
     });
 
   } catch (error) {
     console.error('Erreur récupération étudiants par UFR admin:', error);
-    return res.status(500).json({ 
-      message: 'Erreur lors de la récupération', 
-      error: error.message 
+    return res.status(500).json({
+      message: 'Erreur lors de la récupération',
+      error: error.message
     });
   }
 };
@@ -284,16 +299,16 @@ exports.getByClasse = async (req, res) => {
       [idClasse]
     );
 
-    return res.status(200).json({ 
-      message: 'Étudiants de la classe', 
-      data: etudiants 
+    return res.status(200).json({
+      message: 'Étudiants de la classe',
+      data: etudiants
     });
 
   } catch (error) {
     console.error('Erreur récupération étudiants par classe:', error);
-    return res.status(500).json({ 
-      message: 'Erreur lors de la récupération', 
-      error: error.message 
+    return res.status(500).json({
+      message: 'Erreur lors de la récupération',
+      error: error.message
     });
   }
 };

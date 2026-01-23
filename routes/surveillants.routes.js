@@ -1,3 +1,5 @@
+// Supprimer un surveillant par ID utilisateur
+router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), surveillantsController.deleteSurveillant);
 // routes/surveillants.routes.js
 const express = require('express');
 const router = express.Router();
@@ -74,8 +76,8 @@ router.use(authMiddleware);
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.get('/mon-profil', 
-  roleMiddleware(['SURVEILLANT']), 
+router.get('/mon-profil',
+  roleMiddleware(['SURVEILLANT']),
   surveillantsController.getMonProfil
 );
 
@@ -104,8 +106,8 @@ router.get('/mon-profil',
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.put('/mon-profil', 
-  roleMiddleware(['SURVEILLANT']), 
+router.put('/mon-profil',
+  roleMiddleware(['SURVEILLANT']),
   surveillantsController.updateMonProfil
 );
 
@@ -123,8 +125,8 @@ router.put('/mon-profil',
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.get('/mes-affectations', 
-  roleMiddleware(['SURVEILLANT']), 
+router.get('/mes-affectations',
+  roleMiddleware(['SURVEILLANT']),
   surveillantsController.getMesAffectations
 );
 
@@ -151,8 +153,8 @@ router.get('/mes-affectations',
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.patch('/disponibilite', 
-  roleMiddleware(['SURVEILLANT']), 
+router.patch('/disponibilite',
+  roleMiddleware(['SURVEILLANT']),
   surveillantsController.updateDisponibilite
 );
 
@@ -176,8 +178,8 @@ router.patch('/disponibilite',
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.get('/disponibles', 
-  roleMiddleware(['ADMIN', 'SUPERADMIN']), 
+router.get('/disponibles',
+  roleMiddleware(['ADMIN', 'SUPERADMIN']),
   surveillantsController.getDisponibles
 );
 
@@ -195,8 +197,8 @@ router.get('/disponibles',
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.get('/count/all', 
-  roleMiddleware(['ADMIN', 'SUPERADMIN']), 
+router.get('/count/all',
+  roleMiddleware(['ADMIN', 'SUPERADMIN']),
   surveillantsController.countAll
 );
 
@@ -214,8 +216,8 @@ router.get('/count/all',
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.get('/count/disponibles', 
-  roleMiddleware(['ADMIN', 'SUPERADMIN']), 
+router.get('/count/disponibles',
+  roleMiddleware(['ADMIN', 'SUPERADMIN']),
   surveillantsController.countDisponibles
 );
 
@@ -233,8 +235,8 @@ router.get('/count/disponibles',
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.get('/statistics', 
-  roleMiddleware(['ADMIN', 'SUPERADMIN']), 
+router.get('/statistics',
+  roleMiddleware(['ADMIN', 'SUPERADMIN']),
   surveillantsController.getStatistics
 );
 
