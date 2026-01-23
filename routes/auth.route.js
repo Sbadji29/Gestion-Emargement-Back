@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const authController = require("../controllers/auth.controller");
+const ufrHelperController = require("../controllers/ufr.helper.controller");
 const authMiddleware = require("../middleware/auth.middleware");
 const roleMiddleware = require("../middleware/role.middleware");
 
@@ -174,9 +175,11 @@ router.post("/create-etudiant", authMiddleware, authController.createEtudiant);
  * @swagger
  * /api/auth/register:
  *   post:
- *     summary: Inscription d'un surveillant
- *     tags: [Authentification]
- *     security: []
+ *     summary: Inscription d'un surveillant par un administrateur
+ *     description: Seuls les ADMIN et SUPERADMIN peuvent créer des surveillants. L'idUfr est automatiquement récupéré depuis le profil de l'admin connecté (ADMIN) ou peut être fourni dans le body (SUPERADMIN).
+ *     tags: [Administration]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -210,17 +213,25 @@ router.post("/create-etudiant", authMiddleware, authController.createEtudiant);
  *                 type: string
  *                 format: password
  *                 example: Password123
+ *               idUfr:
+ *                 type: integer
+ *                 example: 1
+ *                 description: (Optionnel) Requis uniquement pour SUPERADMIN. Pour ADMIN, l'idUfr est automatiquement récupéré depuis son profil.
  *     responses:
  *       201:
  *         description: Compte surveillant créé avec succès
  *       400:
- *         description: Validation échouée
+ *         description: Validation échouée ou UFR de l'admin introuvable
+ *       403:
+ *         description: Seul un administrateur peut inscrire un surveillant
+ *       404:
+ *         description: UFR introuvable
  *       409:
  *         description: Email déjà utilisé
  *       500:
  *         description: Erreur serveur
  */
-router.post("/register", authController.register);
+router.post("/register", authMiddleware, roleMiddleware(['ADMIN', 'SUPERADMIN']), authController.register);
 
 /**
  * @swagger
@@ -281,6 +292,44 @@ router.post("/login", authController.login);
  *         description: Erreur serveur
  */
 router.get("/profile", authMiddleware, authController.profile);
+
+/**
+ * @swagger
+ * /api/auth/my-ufr:
+ *   get:
+ *     summary: Récupérer l'UFR de l'administrateur connecté
+ *     description: Retourne l'idUfr et le nom de l'UFR pour un ADMIN, ou la liste des UFR pour un SUPERADMIN
+ *     tags: [Administration]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: UFR récupérée avec succès
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 idUfr:
+ *                   type: integer
+ *                   description: ID de l'UFR (pour ADMIN uniquement)
+ *                 nomUfr:
+ *                   type: string
+ *                   description: Nom de l'UFR (pour ADMIN uniquement)
+ *                 ufrs:
+ *                   type: array
+ *                   description: Liste des UFR (pour SUPERADMIN uniquement)
+ *       403:
+ *         description: Accès réservé aux administrateurs
+ *       404:
+ *         description: UFR de l'administrateur introuvable
+ *       500:
+ *         description: Erreur serveur
+ */
+router.get("/my-ufr", authMiddleware, roleMiddleware(['ADMIN', 'SUPERADMIN']), ufrHelperController.getMyUfr);
+
 
 /**
  * @swagger

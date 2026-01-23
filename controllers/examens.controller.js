@@ -653,10 +653,10 @@ exports.scanStudent = async (req, res) => {
     try {
         const { id } = req.params; // idExamen
         const { student_code } = req.body;
-        const idSurveillant = req.user.idUtilisateur; // Surveillant connecté (via middleware auth mais attention, ici on veut l'idSurveillant table surveillant, pas utilisateur)
+        const idSurveillant = req.user.id; // Surveillant connecté
         
         // Récupérer l'ID surveillant
-        const [surveillantRes] = await connection.query("SELECT id FROM surveillant WHERE idUtilisateur = ?", [req.user.idUtilisateur]);
+        const [surveillantRes] = await connection.query("SELECT id FROM surveillant WHERE idUtilisateur = ?", [req.user.id]);
         if(surveillantRes.length === 0) return res.status(403).json({message: "Vous n'êtes pas surveillant"});
         const realIdSurveillant = surveillantRes[0].id;
 
