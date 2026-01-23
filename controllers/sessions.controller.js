@@ -5,11 +5,13 @@ const db = require('../config/db');
  * US-EX2 : Créer une session d'examen (IMPORTANT)
  * POST /api/examens/sessions
  */
+const SessionSurveillant = require('../models/sessionSurveillant.model');
+
 exports.createSession = async (req, res) => {
   const connection = await db.getConnection();
 
   try {
-    const { idExamen, idSalle, idSurveillant, heureDebut, heureFin } = req.body;
+    const { idExamen, idSalle, surveillants, heureDebut, heureFin } = req.body;
 
     // Validation
     if (!idExamen || !idSalle || !heureDebut || !heureFin) {
@@ -56,25 +58,27 @@ exports.createSession = async (req, res) => {
       });
     }
 
-    // 3. Vérifier disponibilité du surveillant (si fourni)
-    if (idSurveillant) {
-      const [surveillantConflicts] = await connection.query(
-        `SELECT id FROM session_examen 
-         WHERE idSurveillant = ?
-         AND DATE(heureDebut) = ?
-         AND (
-           (heureDebut <= ? AND heureFin > ?)
-           OR (heureDebut < ? AND heureFin >= ?)
-           OR (heureDebut >= ? AND heureFin <= ?)
-         )`,
-        [idSurveillant, date, heureDebut, heureDebut, heureFin, heureFin, heureDebut, heureFin]
-      );
 
-      if (surveillantConflicts.length > 0) {
-        await connection.rollback();
-        return res.status(409).json({
-          message: 'Le surveillant n\'est pas disponible pour ce créneau'
-        });
+    // 3. Vérifier disponibilité des surveillants (si fournis)
+    if (Array.isArray(surveillants) && surveillants.length > 0) {
+      for (const idSurveillant of surveillants) {
+        const [surveillantConflicts] = await connection.query(
+          `SELECT id FROM session_examen 
+           WHERE idSurveillant = ?
+           AND DATE(heureDebut) = ?
+           AND (
+             (heureDebut <= ? AND heureFin > ?)
+             OR (heureDebut < ? AND heureFin >= ?)
+             OR (heureDebut >= ? AND heureFin <= ?)
+           )`,
+          [idSurveillant, date, heureDebut, heureDebut, heureFin, heureFin, heureDebut, heureFin]
+        );
+        if (surveillantConflicts.length > 0) {
+          await connection.rollback();
+          return res.status(409).json({
+            message: `Le surveillant ${idSurveillant} n'est pas disponible pour ce créneau`
+          });
+        }
       }
     }
 
@@ -110,13 +114,19 @@ exports.createSession = async (req, res) => {
       });
     }
 
-    // 7. Créer la session
+
+    // 7. Créer la session (idSurveillant mis à NULL, car géré dans la table de liaison)
     const [result] = await connection.query(
       `INSERT INTO session_examen 
        (idExamen, idSalle, idSurveillant, heureDebut, heureFin, nombreInscrits, nombrePresents) 
-       VALUES (?, ?, ?, ?, ?, ?, 0)`,
-      [idExamen, idSalle, idSurveillant || null, heureDebut, heureFin, nombreInscrits]
+       VALUES (?, ?, NULL, ?, ?, ?, 0)`,
+      [idExamen, idSalle, heureDebut, heureFin, nombreInscrits]
     );
+
+    // 7b. Ajouter les surveillants dans la table de liaison
+    if (Array.isArray(surveillants) && surveillants.length > 0) {
+      await SessionSurveillant.addSurveillants(result.insertId, surveillants);
+    }
 
     // 8. Changer statut de la salle en 'Occupee'
     await connection.query(
@@ -126,13 +136,14 @@ exports.createSession = async (req, res) => {
 
     await connection.commit();
 
+
     return res.status(201).json({
       message: 'Session créée avec succès',
       data: {
         idSession: result.insertId,
         idExamen,
         idSalle,
-        idSurveillant,
+        surveillants,
         heureDebut,
         heureFin,
         nombreInscrits,
@@ -160,6 +171,7 @@ exports.getSessionById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Récupérer la session et ses infos principales
     const [sessions] = await db.query(
       `SELECT 
         se.*,
@@ -169,16 +181,12 @@ exports.getSessionById = async (req, res) => {
         c.nomClasse,
         s.numero as salle,
         s.batiment,
-        s.capacite,
-        u.nom as nomSurveillant,
-        u.prenom as prenomSurveillant
+        s.capacite
       FROM session_examen se
       INNER JOIN examen e ON se.idExamen = e.id
       LEFT JOIN matiere m ON e.idMatiere = m.id
       LEFT JOIN classe c ON m.idClasse = c.id
       LEFT JOIN salle s ON se.idSalle = s.id
-      LEFT JOIN surveillant surv ON se.idSurveillant = surv.id
-      LEFT JOIN utilisateur u ON surv.idUtilisateur = u.idUtilisateur
       WHERE se.id = ?`,
       [id]
     );
@@ -189,9 +197,22 @@ exports.getSessionById = async (req, res) => {
       });
     }
 
+    // Récupérer la liste des surveillants associés à la session
+    const [surveillants] = await db.query(
+      `SELECT ss.idSurveillant, u.nom, u.prenom
+       FROM session_surveillant ss
+       INNER JOIN surveillant s ON ss.idSurveillant = s.id
+       INNER JOIN utilisateur u ON s.idUtilisateur = u.idUtilisateur
+       WHERE ss.idSession = ?`,
+      [id]
+    );
+
     return res.status(200).json({
       message: 'Session trouvée',
-      data: sessions[0]
+      data: {
+        ...sessions[0],
+        surveillants
+      }
     });
 
   } catch (error) {

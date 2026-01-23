@@ -1,5 +1,6 @@
 const db = require("../config/db");
 
+
 const SessionSurveillant = {
   createTable: () => {
     const sql = `
@@ -13,6 +14,12 @@ const SessionSurveillant = {
       )
     `;
     return db.promise().query(sql);
+  },
+  addSurveillants: async (idSession, surveillantIds) => {
+    if (!Array.isArray(surveillantIds) || surveillantIds.length === 0) return;
+    const values = surveillantIds.map(id => [idSession, id]);
+    const sql = 'INSERT INTO session_surveillant (idSession, idSurveillant) VALUES ?';
+    return db.promise().query(sql, [values]);
   }
 };
 
