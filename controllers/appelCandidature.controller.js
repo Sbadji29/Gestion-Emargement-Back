@@ -24,10 +24,20 @@ exports.create = async (req, res) => {
 
         if (!titre) return res.status(400).json({ message: 'Le titre est obligatoire' });
 
+        let finalRemuneration = remuneration || 0;
+
+        // Si la rémunération n'est pas spécifiée mais qu'un examen est lié, récupérer celle de l'examen
+        if (!remuneration && idExamen) {
+            const [exam] = await db.query('SELECT remuneration FROM examen WHERE id = ?', [idExamen]);
+            if (exam.length > 0 && exam[0].remuneration) {
+                finalRemuneration = exam[0].remuneration;
+            }
+        }
+
         const [result] = await db.query(
             `INSERT INTO appel_candidature (titre, description, idExamen, idUfr, nombrePostes, remuneration, lieu, qualificationsRequises, dateDebut, dateFin, idCreateur)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [titre, description || null, idExamen || null, idUfr || null, nombrePostes || 1, remuneration || 0, lieu || null, qualificationsRequises || null, dateDebut || null, dateFin || null, idCreateur]
+            [titre, description || null, idExamen || null, idUfr || null, nombrePostes || 1, finalRemuneration, lieu || null, qualificationsRequises || null, dateDebut || null, dateFin || null, idCreateur]
         );
 
         return res.status(201).json({ message: 'Appel de candidature créé', data: { id: result.insertId } });
