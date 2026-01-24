@@ -678,7 +678,7 @@ exports.scanStudent = async (req, res) => {
         // 2. Trouver la session active pour ce surveillant
         // On cherche une session de cet examen où ce surveillant est affecté
         const [sessions] = await connection.query(
-            `SELECT se.id 
+            `SELECT se.id, se.heureDebut 
              FROM session_examen se
              INNER JOIN session_surveillant ss ON se.id = ss.idSession
              WHERE se.idExamen = ? AND ss.idSurveillant = ?
@@ -689,6 +689,12 @@ exports.scanStudent = async (req, res) => {
         if (sessions.length === 0) {
             return res.status(403).json({ message: 'Vous n\'êtes pas affecté à une session pour cet examen' });
         }
+
+        // Vérifier que la session a démarré
+        if (!sessions[0].heureDebut) {
+            return res.status(400).json({ message: 'La session n\'a pas encore démarré' });
+        }
+
         const sessionId = sessions[0].id;
 
         // 3. Vérifier statut actuel

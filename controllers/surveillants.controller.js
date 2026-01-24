@@ -1,3 +1,6 @@
+const db = require('../config/db');
+const bcrypt = require('bcryptjs');
+
 /**
  * Supprimer un surveillant par ID utilisateur
  * DELETE /api/surveillants/:id
@@ -37,8 +40,6 @@ exports.deleteSurveillant = async (req, res) => {
     });
   }
 };
-const db = require('../config/db');
-const bcrypt = require('bcryptjs');
 
 /**
  * ============================================

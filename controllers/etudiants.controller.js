@@ -1,3 +1,5 @@
+const db = require('../config/db');
+
 // Supprimer un étudiant par ID
 exports.delete = async (req, res) => {
   try {
@@ -14,7 +16,6 @@ exports.delete = async (req, res) => {
   }
 };
 // controllers/etudiants.controller.js
-const db = require('../config/db');
 
 /**
  * US-E1 : Récupérer un étudiant par son code (CRITIQUE)
