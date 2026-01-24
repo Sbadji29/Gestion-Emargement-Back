@@ -43,6 +43,40 @@ exports.deleteSurveillant = async (req, res) => {
 
 /**
  * ============================================
+ * LISTER TOUS LES SURVEILLANTS (ADMIN)
+ * GET /api/surveillants
+ * ============================================
+ */
+exports.getAll = async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT 
+        s.id,
+        u.idUtilisateur,
+        u.nom,
+        u.prenom,
+        u.email,
+        s.telephone,
+        s.specialite,
+        s.disponible,
+        s.idUfr
+      FROM surveillant s
+      JOIN utilisateur u ON s.idUtilisateur = u.idUtilisateur
+      ORDER BY u.nom, u.prenom
+    `);
+
+    res.json({
+      message: 'Liste de tous les surveillants',
+      data: rows
+    });
+  } catch (error) {
+    console.error('Erreur récupération surveillants:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+/**
+ * ============================================
  * INSCRIPTION SURVEILLANT (PUBLIC)
  * POST /api/surveillants/inscription
  * ============================================

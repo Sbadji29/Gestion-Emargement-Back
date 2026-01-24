@@ -63,6 +63,22 @@ router.post('/inscription', roleMiddleware(['ADMIN', 'SUPERADMIN']), surveillant
 
 /**
  * @swagger
+ * /api/surveillants:
+ *   get:
+ *     summary: Lister tous les surveillants (admin uniquement)
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste de tous les surveillants
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
+router.get('/', roleMiddleware(['ADMIN', 'SUPERADMIN']), surveillantsController.getAll);
+
+/**
+ * @swagger
  * /api/surveillants/mon-profil:
  *   get:
  *     summary: Récupérer le profil du surveillant connecté
