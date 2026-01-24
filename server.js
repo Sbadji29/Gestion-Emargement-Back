@@ -65,6 +65,7 @@ const sallesRoutes = require('./routes/salles.routes');
 const sectionsRoutes = require('./routes/sections.routes');
 const examensRoutes = require('./routes/examens.routes');
 const sessionsRoutes= require('./routes/sessions.routes');
+const feuillePresenceRoutes = require('./routes/feuillePresence.routes');
 
 // Initialisation de la base de données
 async function initDatabase() {
@@ -114,6 +115,7 @@ app.use('/api/salles', sallesRoutes);
 app.use('/api/sections', sectionsRoutes);
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/examens', examensRoutes);
+app.use('/api', feuillePresenceRoutes); // Routes feuille de présence
 app.use('/api/surveillant', require('./routes/surveillant-workflow.routes'));
 app.use('/api/etudiants-lookup', require('./routes/etudiants.lookup.routes')); // specific separate route to avoid conflict or just convenient
 
