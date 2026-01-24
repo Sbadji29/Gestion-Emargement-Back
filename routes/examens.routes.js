@@ -222,6 +222,42 @@ router.post('/',
   examensController.create
 );
 
+/**
+ * @swagger
+ * /api/examens:
+ *   get:
+ *     summary: Lister tous les examens
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste complète des examens
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       codeExamen:
+ *                         type: string
+ *                       dateExamen:
+ *                         type: string
+ *                         format: date-time
+ *                       nomMatiere:
+ *                         type: string
+ *       401:
+ *         description: Non authentifié
+ */
+
 // ... (continuer de la même façon pour les autres routes : put, delete, sessions, get by id, get all)
 
 // ... (previous code)

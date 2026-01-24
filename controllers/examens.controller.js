@@ -534,7 +534,7 @@ exports.getCandidats = async (req, res) => {
     }
 
     // Récupérer les candidatures liées à cet examen via l'appel à candidature
-    // Examen -> AppelCandidature -> Candidature -> Utilisateur
+    // Examen -> AppelCandidature -> Candidature -> Utilisateur -> Surveillant
     const [candidats] = await db.promise().query(
       `SELECT 
         c.id as idCandidature,
@@ -544,10 +544,12 @@ exports.getCandidats = async (req, res) => {
         u.nom,
         u.prenom,
         u.email,
-        u.role
+        u.role,
+        s.id as idSurveillant
       FROM candidature c
       INNER JOIN appel_candidature ac ON c.idAppel = ac.id
       INNER JOIN utilisateur u ON c.idUtilisateur = u.idUtilisateur
+      LEFT JOIN surveillant s ON u.idUtilisateur = s.idUtilisateur
       WHERE ac.idExamen = ?
       ORDER BY c.dateSoumission DESC`,
       [id]

@@ -23,6 +23,34 @@ router.use(authMiddleware);
  *   get:
  *     tags: [Surveillant]
  *     summary: Liste des examens ouverts à la candidature
+ *     description: Récupère les appels à candidature de l'UFR du surveillant auxquels il peut encore postuler.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des opportunités récupérée
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       titre:
+ *                         type: string
+ *                       statut:
+ *                         type: string
+ *       401:
+ *         description: Non authentifié (Token manquant/invalide)
+ *       403:
+ *         description: Accès refusé (Rôle incorrect ou UFR manquante)
  */
 router.get('/opportunites', roleMiddleware(['SURVEILLANT']), surveillantController.getOpportunites);
 
@@ -32,6 +60,16 @@ router.get('/opportunites', roleMiddleware(['SURVEILLANT']), surveillantControll
  *   get:
  *     tags: [Surveillant]
  *     summary: Liste des candidatures du surveillant connecté
+ *     description: Historique des candidatures soumises avec leur état actuel.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des candidatures récupérée
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès refusé
  */
 router.get('/mes-candidatures', roleMiddleware(['SURVEILLANT']), surveillantController.getMesCandidatures);
 
@@ -41,6 +79,16 @@ router.get('/mes-candidatures', roleMiddleware(['SURVEILLANT']), surveillantCont
  *   get:
  *     tags: [Surveillant]
  *     summary: Examens assignés à venir
+ *     description: Liste des sessions d'examen futures où le surveillant est affecté.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des examens à venir
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès refusé
  */
 router.get('/examens-a-venir', roleMiddleware(['SURVEILLANT']), surveillantController.getExamensAVenir);
 
@@ -49,7 +97,17 @@ router.get('/examens-a-venir', roleMiddleware(['SURVEILLANT']), surveillantContr
  * /api/surveillant/tableau-de-bord:
  *   get:
  *     tags: [Surveillant]
- *     summary: Dashboard surveillant (stats, gains)
+ *     summary: Tableau de bord surveillant
+ *     description: Statistiques personnelles (total surveillés, gains, prochains examens).
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Données du tableau de bord
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès refusé
  */
 router.get('/tableau-de-bord', roleMiddleware(['SURVEILLANT']), surveillantController.getDashboard);
 
@@ -59,6 +117,16 @@ router.get('/tableau-de-bord', roleMiddleware(['SURVEILLANT']), surveillantContr
  *   get:
  *     tags: [Surveillant]
  *     summary: Profil surveillant
+ *     description: Informations du compte utilisateur connecté.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profil récupéré
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès refusé
  */
 router.get('/profil', roleMiddleware(['SURVEILLANT']), surveillantController.getProfil);
 

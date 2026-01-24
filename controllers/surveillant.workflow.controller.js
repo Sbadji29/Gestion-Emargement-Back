@@ -100,48 +100,37 @@ exports.getMesCandidatures = async (req, res) => {
 
 /**
  * GET /surveillant/examens-a-venir
- * Liste des examens où le surveillant est affecté (via session_surveillant).
+ * Liste des examens où le surveillant a été accepté.
  */
 exports.getExamensAVenir = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Retrouver l'ID surveillant à partir de l'ID utilisateur
-    const [surveillant] = await db.promise().query(
-      'SELECT id FROM surveillant WHERE idUtilisateur = ?',
-      [userId]
-    );
-
-    if (surveillant.length === 0) {
-      return res.status(404).json({ message: 'Profil surveillant non trouvé' });
-    }
-
-    const idSurveillant = surveillant[0].id;
-
-    // Utilisation de la table de liaison session_surveillant
+    // Récupérer les examens liés aux candidatures ACCEPTÉES
     const [examens] = await db.promise().query(
       `SELECT 
-        se.id as idSession,
-        se.heureDebut,
-        se.heureFin,
         e.id as idExamen,
         e.codeExamen,
         e.dateExamen,
-        e.remuneration,
-        s.numero as salle,
-        s.batiment
-      FROM session_examen se
-      INNER JOIN session_surveillant ss ON se.id = ss.idSession
-      INNER JOIN examen e ON se.idExamen = e.id
-      INNER JOIN salle s ON se.idSalle = s.id
-      WHERE ss.idSurveillant = ?
+        e.duree,
+        e.typeExamen,
+        ac.remuneration,
+        ac.titre as titreAppel,
+        c.statut as statutCandidature,
+        ufr.nom as nomUfr
+      FROM candidature c
+      INNER JOIN appel_candidature ac ON c.idAppel = ac.id
+      INNER JOIN examen e ON ac.idExamen = e.id
+      LEFT JOIN ufr ON ac.idUfr = ufr.id
+      WHERE c.idUtilisateur = ?
+      AND c.statut = 'Accepte'
       AND e.dateExamen >= NOW()
       ORDER BY e.dateExamen ASC`,
-      [idSurveillant]
+      [userId]
     );
 
     return res.status(200).json({
-      message: 'Examens à venir',
+      message: 'Examens à venir (Candidatures acceptées)',
       data: examens
     });
 
@@ -169,9 +158,20 @@ exports.getDashboard = async (req, res) => {
     }
     const idSurveillant = surveillant[0].id;
 
-    // 1. Total examens surveillés (passés)
+    // 1. Total Gain : Somme des rémunérations des candidatures ACCEPTÉES
+    const [gains] = await db.promise().query(
+      `SELECT SUM(ac.remuneration) as totalRemuneration
+       FROM candidature c
+       INNER JOIN appel_candidature ac ON c.idAppel = ac.id
+       WHERE c.idUtilisateur = ?
+       AND c.statut = 'Accepte'`,
+      [userId]
+    );
+
+    // 2. Count Examens Surveillés (Terminés - via session)
+    // On garde l'historique réel "sur le terrain"
     const [historique] = await db.promise().query(
-      `SELECT count(*) as total, sum(e.remuneration) as totalRemuneration
+      `SELECT count(*) as total
        FROM session_examen se
        INNER JOIN session_surveillant ss ON se.id = ss.idSession
        INNER JOIN examen e ON se.idExamen = e.id
@@ -180,22 +180,24 @@ exports.getDashboard = async (req, res) => {
       [idSurveillant]
     );
 
-    // 2. Prochains examens
+    // 3. Prochains examens (basé sur les candidatures acceptées)
     const [prochains] = await db.promise().query(
-      `SELECT e.codeExamen, e.dateExamen 
-         FROM session_examen se 
-         INNER JOIN session_surveillant ss ON se.id = ss.idSession
-         JOIN examen e ON se.idExamen = e.id 
-         WHERE ss.idSurveillant = ? AND e.dateExamen > NOW() 
+      `SELECT e.codeExamen, e.dateExamen, ac.titre 
+         FROM candidature c
+         INNER JOIN appel_candidature ac ON c.idAppel = ac.id
+         JOIN examen e ON ac.idExamen = e.id 
+         WHERE c.idUtilisateur = ? 
+         AND c.statut = 'Accepte'
+         AND e.dateExamen > NOW() 
          ORDER BY e.dateExamen LIMIT 3`,
-      [idSurveillant]
+      [userId]
     );
 
     return res.status(200).json({
       message: 'Tableau de bord',
       data: {
         totalExamensSurveilles: historique[0].total || 0,
-        totalGain: historique[0].totalRemuneration || 0,
+        totalGain: gains[0].totalRemuneration || 0,
         prochainsExamens: prochains
       }
     });
