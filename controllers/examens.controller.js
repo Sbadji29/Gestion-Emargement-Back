@@ -680,7 +680,7 @@ exports.scanStudent = async (req, res) => {
         // 2. Trouver la session active pour ce surveillant
         // On cherche une session de cet examen où ce surveillant est affecté
         const [sessions] = await connection.query(
-            `SELECT se.id, se.heureDebut 
+            `SELECT se.id, se.heureDebut, se.heureFin 
              FROM session_examen se
              INNER JOIN session_surveillant ss ON se.id = ss.idSession
              WHERE se.idExamen = ? AND ss.idSurveillant = ?
@@ -692,14 +692,21 @@ exports.scanStudent = async (req, res) => {
             return res.status(403).json({ message: 'Vous n\'êtes pas affecté à une session pour cet examen' });
         }
 
+        const session = sessions[0];
+
         // Vérifier que la session a démarré
-        if (!sessions[0].heureDebut) {
-            return res.status(400).json({ message: 'La session n\'a pas encore démarré' });
+        if (!session.heureDebut) {
+            return res.status(400).json({ message: "Le scan n'est pas encore autorisé. La session doit être démarrée par l'examinateur." });
+        }
+
+        // Vérifier que la session n'est pas terminée
+        if (session.heureFin) {
+            return res.status(400).json({ message: "La session est déjà terminée." });
         }
 
         const sessionId = sessions[0].id;
 
-        // 3. Vérifier statut actuel
+        // 3. Vérifier statut actuel (Machine à états)
         const [emargement] = await connection.query(
             "SELECT id, statut FROM emargement WHERE idSession = ? AND idEtudiant = ?",
             [sessionId, studentId]
@@ -710,19 +717,23 @@ exports.scanStudent = async (req, res) => {
 
         if (emargement.length > 0) {
             const currentStatus = emargement[0].statut;
+
+            // Logique de basculement d'état
             if (currentStatus === 'Present') {
+                // État: Présent -> Copie Rendue
                 newStatus = 'COPIE_RENDUE';
                 message = 'Copie réceptionnée';
-                // Update
                 await connection.query("UPDATE emargement SET statut = ? WHERE id = ?", [newStatus, emargement[0].id]);
             } else if (currentStatus === 'COPIE_RENDUE') {
+                // État: Copie Rendue -> Pas d'action (message d'erreur)
                 return res.status(400).json({ message: 'Copie déjà rendue' });
             } else {
-                // Si Absent ou Inscrit -> Present
+                // État: Absent (ou Inscrit par défaut) -> Présent
+                // On met à jour l'heure et le surveillant
                 await connection.query("UPDATE emargement SET statut = 'Present', dateHeure = NOW(), idSurveillant = ? WHERE id = ?", [realIdSurveillant, emargement[0].id]);
             }
         } else {
-            // Insert
+            // État: Code Introuvable (NULL) -> Présent (Insertion)
             await connection.query(
                 "INSERT INTO emargement (idSession, idEtudiant, statut, dateHeure, idSurveillant) VALUES (?, ?, 'Present', NOW(), ?)",
                 [sessionId, studentId, realIdSurveillant]
