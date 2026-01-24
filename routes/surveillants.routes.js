@@ -300,19 +300,12 @@ router.get('/statistics',
 
 /**
  * @swagger
- * /api/surveillants/{id}/stats:
+ * /api/surveillants/mes-statistiques:
  *   get:
- *     summary: Obtenir les statistiques d'un surveillant (Total examens et durée)
+ *     summary: Obtenir mes statistiques (Total examens et durée)
  *     tags: [Surveillants]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID de l'utilisateur surveillant
  *     responses:
  *       200:
  *         description: Statistiques récupérées
@@ -333,9 +326,9 @@ router.get('/statistics',
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.get('/:id/stats',
-  roleMiddleware(['ADMIN', 'SUPERADMIN']),
-  surveillantsController.getSurveillantStats
+router.get('/mes-statistiques',
+  roleMiddleware(['SURVEILLANT']),
+  surveillantsController.getMyStats
 );
 
 /**

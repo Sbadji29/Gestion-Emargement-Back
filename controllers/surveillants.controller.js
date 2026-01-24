@@ -44,12 +44,12 @@ exports.getEarnings = async (req, res) => {
 };
 
 /**
- * Get surveillant statistics (Total exams & duration)
- * GET /api/surveillants/:id/stats
+ * Get connected surveillant statistics (Total exams & duration)
+ * GET /api/surveillants/mes-statistiques
  */
-exports.getSurveillantStats = async (req, res) => {
+exports.getMyStats = async (req, res) => {
   try {
-    const { id } = req.params; // idUtilisateur
+    const idUtilisateur = req.user.id; // Surveillant connecté
 
     const [stats] = await db.promise().query(`
       SELECT 
@@ -60,10 +60,10 @@ exports.getSurveillantStats = async (req, res) => {
       JOIN examen e ON ac.idExamen = e.id
       WHERE c.idUtilisateur = ?
       AND c.statut = 'Accepte'
-    `, [id]);
+    `, [idUtilisateur]);
 
     res.json({
-      message: 'Statistiques du surveillant',
+      message: 'Mes statistiques',
       data: {
         totalExams: stats[0].totalExams || 0,
         totalDuration: stats[0].totalDuration || 0
@@ -71,7 +71,7 @@ exports.getSurveillantStats = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Erreur stats surveillant:', error);
+    console.error('Erreur mes stats:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
