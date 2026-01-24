@@ -183,8 +183,8 @@ const inscriptionController = {
 
             if (matiere.length === 0) {
               const [matiereResult] = await connection.query(
-                "INSERT INTO matiere (code, nom, credits, idClasse, idUfr) VALUES (?, ?, ?, ?, ?)",
-                [matiereData.codeMatiere, matiereData.nomMatiere, matiereData.credits, idClasse, idUfr]
+                "INSERT INTO matiere (code, nom, credits, idClasse, idSection, idUfr) VALUES (?, ?, ?, ?, ?, ?)",
+                [matiereData.codeMatiere, matiereData.nomMatiere, matiereData.credits, idClasse, req.body.idSection || null, idUfr]
               );
 
               idMatiere = matiereResult.insertId;
