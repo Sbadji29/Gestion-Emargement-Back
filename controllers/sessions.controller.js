@@ -8,7 +8,7 @@ const db = require('../config/db');
 const SessionSurveillant = require('../models/sessionSurveillant.model');
 
 exports.createSession = async (req, res) => {
-  const connection = await db.getConnection();
+  const connection = await db.promise().getConnection();
 
   try {
     const { idExamen, idSalle, surveillants } = req.body;
@@ -69,7 +69,7 @@ exports.createSession = async (req, res) => {
     const [inscrits] = await connection.query(
       `SELECT COUNT(DISTINCT i.idEtudiant) as count
        FROM inscription_matiere im
-       INNER JOIN inscription i ON im.idInscription = i.idInscription
+       INNER JOIN inscription i ON im.idInscription = i.id
        WHERE im.idMatiere = ?`,
       [examen[0].idMatiere]
     );
@@ -95,7 +95,7 @@ exports.createSession = async (req, res) => {
 
     // 7. Ajouter les surveillants dans la table de liaison
     if (Array.isArray(surveillants) && surveillants.length > 0) {
-      await SessionSurveillant.addSurveillants(result.insertId, surveillants);
+      await SessionSurveillant.addSurveillants(connection, result.insertId, surveillants);
     }
 
     // 8. Changer statut de la salle en 'Occupee'
@@ -142,12 +142,12 @@ exports.getSessionById = async (req, res) => {
     const { id } = req.params;
 
     // Récupérer la session et ses infos principales
-    const [sessions] = await db.query(
+    const [sessions] = await db.promise().query(
       `SELECT 
         se.*,
         e.codeExamen,
         e.typeExamen,
-        m.nomMatiere,
+        m.nom as nomMatiere,
         c.nomClasse,
         s.numero as salle,
         s.batiment,
@@ -168,7 +168,7 @@ exports.getSessionById = async (req, res) => {
     }
 
     // Récupérer la liste des surveillants associés à la session
-    const [surveillants] = await db.query(
+    const [surveillants] = await db.promise().query(
       `SELECT ss.idSurveillant, u.nom, u.prenom
        FROM session_surveillant ss
        INNER JOIN surveillant s ON ss.idSurveillant = s.id
@@ -242,7 +242,7 @@ exports.getAllSessions = async (req, res) => {
 
     query += ' GROUP BY se.id ORDER BY se.heureDebut DESC';
 
-    const [sessions] = await db.query(query, params);
+    const [sessions] = await db.promise().query(query, params);
 
     return res.status(200).json({
       message: 'Liste des sessions',
@@ -267,7 +267,7 @@ exports.deleteSession = async (req, res) => {
     const { id } = req.params;
 
     // Vérifier si la session existe
-    const [rows] = await db.query(
+    const [rows] = await db.promise().query(
       'SELECT id FROM session_examen WHERE id = ?',
       [id]
     );
@@ -276,7 +276,7 @@ exports.deleteSession = async (req, res) => {
     }
 
     // Suppression
-    await db.query(
+    await db.promise().query(
       'DELETE FROM session_examen WHERE id = ?',
       [id]
     );
@@ -303,7 +303,7 @@ exports.startSession = async (req, res) => {
     const heureDebut = new Date();
 
     // Vérifier que la session existe
-    const [session] = await db.query(
+    const [session] = await db.promise().query(
       'SELECT id, heureDebut FROM session_examen WHERE id = ?',
       [id]
     );
@@ -323,7 +323,7 @@ exports.startSession = async (req, res) => {
     }
 
     // Mettre à jour heureDebut
-    await db.query(
+    await db.promise().query(
       'UPDATE session_examen SET heureDebut = ? WHERE id = ?',
       [heureDebut, id]
     );
@@ -354,7 +354,7 @@ exports.endSession = async (req, res) => {
     const heureFin = new Date();
 
     // Vérifier que la session existe
-    const [session] = await db.query(
+    const [session] = await db.promise().query(
       'SELECT id, heureDebut, heureFin FROM session_examen WHERE id = ?',
       [id]
     );
@@ -381,7 +381,7 @@ exports.endSession = async (req, res) => {
     }
 
     // Mettre à jour heureFin et libérer la salle
-    const connection = await db.getConnection();
+    const connection = await db.promise().getConnection();
     try {
       await connection.beginTransaction();
 

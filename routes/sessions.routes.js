@@ -2,7 +2,11 @@
 const express = require('express');
 const router = express.Router();
 const sessionsController = require('../controllers/sessions.controller');
+const authMiddleware = require('../middleware/auth.middleware');
 const roleMiddleware = require('../middleware/role.middleware');
+
+// Toutes les routes nécessitent une authentification
+router.use(authMiddleware);
 
 // routes/examens.routes.js (extrait avec annotations pour les sessions)
 
@@ -15,7 +19,7 @@ const roleMiddleware = require('../middleware/role.middleware');
 
 /**
  * @swagger
- * /api/examens/sessions:
+ * /api/sessions:
  *   post:
  *     summary: Créer une nouvelle session d'examen (admin uniquement)
  *     description: >
@@ -109,7 +113,7 @@ router.post('/',
 
 /**
  * @swagger
- * /api/examens/sessions/{id}:
+ * /api/sessions/{id}:
  *   get:
  *     summary: Récupérer une session d'examen par son ID
  *     tags: [Sessions]
@@ -181,7 +185,7 @@ router.get('/:id', sessionsController.getSessionById);
 
 /**
  * @swagger
- * /api/examens/sessions:
+ * /api/sessions:
  *   get:
  *     summary: Lister toutes les sessions d'examen
  *     description: Possibilité de filtrer par date (YYYY-MM-DD) et/ou par statut de l'examen
