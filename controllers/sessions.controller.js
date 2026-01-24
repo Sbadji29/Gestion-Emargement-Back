@@ -95,22 +95,31 @@ exports.createSession = async (req, res) => {
 
     // 7. Ajouter les surveillants dans la table de liaison
     if (Array.isArray(surveillants) && surveillants.length > 0) {
+      console.log('🔍 [DEBUG] Assigning surveillants:', surveillants);
       await SessionSurveillant.addSurveillants(connection, result.insertId, surveillants);
 
       // 7b. Mettre à jour le statut des candidatures en 'Accepte'
       // On cherche l'appel à candidature lié à cet examen
+      console.log('🔍 [DEBUG] Searching for Appel linked to Exam ID:', idExamen);
       const [appels] = await connection.query('SELECT id FROM appel_candidature WHERE idExamen = ?', [idExamen]);
+      console.log('🔍 [DEBUG] Appels found:', appels);
       
       if (appels.length > 0) {
           const idAppel = appels[0].id;
+          console.log(`🔍 [DEBUG] Updating candidature status for Appel ID: ${idAppel} and Surveillants: ${JSON.stringify(surveillants)}`);
+          
           // On met à jour le statut pour tous les surveillants sélectionnés
           // Note: On fait une jointure pour faire correspondre surveillant.id -> candidature.idUtilisateur
-          await connection.query(`
+          const [updateRes] = await connection.query(`
               UPDATE candidature c
               INNER JOIN surveillant s ON c.idUtilisateur = s.idUtilisateur
               SET c.statut = 'Accepte'
               WHERE s.id IN (?) AND c.idAppel = ?
           `, [surveillants, idAppel]);
+          
+          console.log('✅ [DEBUG] Candidature Update Result:', updateRes.info);
+      } else {
+          console.log('⚠️ [DEBUG] No Appel found for this Exam. Candidatures NOT updated.');
       }
     }
 
