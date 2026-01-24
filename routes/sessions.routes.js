@@ -185,6 +185,29 @@ router.get('/:id', sessionsController.getSessionById);
 
 /**
  * @swagger
+ * /api/sessions/examen/{idExamen}:
+ *   get:
+ *     summary: Récupérer les sessions d'un examen spécifique
+ *     tags: [Sessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: idExamen
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de l'examen
+ *     responses:
+ *       200:
+ *         description: Liste des sessions de l'examen
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
+router.get('/examen/:idExamen', sessionsController.getSessionsByExamen);
+
+/**
+ * @swagger
  * /api/sessions:
  *   get:
  *     summary: Lister toutes les sessions d'examen

@@ -194,69 +194,104 @@ exports.getSessionById = async (req, res) => {
   }
 };
 
-/**
- * Lister toutes les sessions
- * GET /api/examens/sessions
- */
+  /**
+   * Récupérer les sessions d'un examen spécifique
+   * GET /api/sessions/examen/:idExamen
+   */
+exports.getSessionsByExamen = async (req, res) => {
+    try {
+      const { idExamen } = req.params;
+
+      const [sessions] = await db.promise().query(`
+        SELECT 
+          se.*,
+          s.numero as salle,
+          s.batiment,
+          s.capacite,
+          GROUP_CONCAT(CONCAT(u.nom, ' ', u.prenom) SEPARATOR ', ') as surveillants
+        FROM session_examen se
+        LEFT JOIN salle s ON se.idSalle = s.id
+        LEFT JOIN session_surveillant ss ON se.id = ss.idSession
+        LEFT JOIN surveillant surv ON ss.idSurveillant = surv.id
+        LEFT JOIN utilisateur u ON surv.idUtilisateur = u.idUtilisateur
+        WHERE se.idExamen = ?
+        GROUP BY se.id
+        ORDER BY se.heureDebut ASC
+      `, [idExamen]);
+
+      return res.status(200).json({
+        message: 'Sessions de l\'examen',
+        data: sessions
+      });
+
+    } catch (error) {
+      console.error('Erreur récupération sessions par examen:', error);
+      return res.status(500).json({
+        message: 'Erreur lors de la récupération des sessions',
+        error: error.message
+      });
+    }
+  };
+
 exports.getAllSessions = async (req, res) => {
-  try {
-    const { date, statut } = req.query;
+    try {
+      const { date, statut } = req.query;
 
-    let query = `
-      SELECT 
-        se.*,
-        e.codeExamen,
-        e.typeExamen,
-        e.statut as statutExamen,
-        m.nom as nomMatiere,
-        c.nomClasse,
-        s.numero as salle,
-        s.batiment,
-        GROUP_CONCAT(CONCAT(u.nom, ' ', u.prenom) SEPARATOR ', ') as surveillants
-      FROM session_examen se
-      INNER JOIN examen e ON se.idExamen = e.id
-      LEFT JOIN matiere m ON e.idMatiere = m.id
-      LEFT JOIN classe c ON m.idClasse = c.id
-      LEFT JOIN salle s ON se.idSalle = s.id
-      LEFT JOIN session_surveillant ss ON se.id = ss.idSession
-      LEFT JOIN surveillant surv ON ss.idSurveillant = surv.id
-      LEFT JOIN utilisateur u ON surv.idUtilisateur = u.idUtilisateur
-    `;
+      let query = `
+        SELECT 
+          se.*,
+          e.codeExamen,
+          e.typeExamen,
+          e.statut as statutExamen,
+          m.nom as nomMatiere,
+          c.nomClasse,
+          s.numero as salle,
+          s.batiment,
+          GROUP_CONCAT(CONCAT(u.nom, ' ', u.prenom) SEPARATOR ', ') as surveillants
+        FROM session_examen se
+        INNER JOIN examen e ON se.idExamen = e.id
+        LEFT JOIN matiere m ON e.idMatiere = m.id
+        LEFT JOIN classe c ON m.idClasse = c.id
+        LEFT JOIN salle s ON se.idSalle = s.id
+        LEFT JOIN session_surveillant ss ON se.id = ss.idSession
+        LEFT JOIN surveillant surv ON ss.idSurveillant = surv.id
+        LEFT JOIN utilisateur u ON surv.idUtilisateur = u.idUtilisateur
+      `;
 
-    const conditions = [];
-    const params = [];
+      const conditions = [];
+      const params = [];
 
-    if (date) {
-      conditions.push('DATE(se.heureDebut) = ?');
-      params.push(date);
+      if (date) {
+        conditions.push('DATE(se.heureDebut) = ?');
+        params.push(date);
+      }
+
+      if (statut) {
+        conditions.push('e.statut = ?');
+        params.push(statut);
+      }
+
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+      }
+
+      query += ' GROUP BY se.id ORDER BY se.heureDebut DESC';
+
+      const [sessions] = await db.promise().query(query, params);
+
+      return res.status(200).json({
+        message: 'Liste des sessions',
+        data: sessions
+      });
+
+    } catch (error) {
+      console.error('Erreur récupération sessions:', error);
+      return res.status(500).json({
+        message: 'Erreur lors de la récupération des sessions',
+        error: error.message
+      });
     }
-
-    if (statut) {
-      conditions.push('e.statut = ?');
-      params.push(statut);
-    }
-
-    if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
-
-    query += ' GROUP BY se.id ORDER BY se.heureDebut DESC';
-
-    const [sessions] = await db.promise().query(query, params);
-
-    return res.status(200).json({
-      message: 'Liste des sessions',
-      data: sessions
-    });
-
-  } catch (error) {
-    console.error('Erreur récupération sessions:', error);
-    return res.status(500).json({
-      message: 'Erreur lors de la récupération des sessions',
-      error: error.message
-    });
-  }
-};
+  };
 
 /**
  * Supprimer une session d'examen par ID
