@@ -26,8 +26,18 @@ exports.getOpportunites = async (req, res) => {
 
     const [opportunites] = await db.promise().query(
       `SELECT 
-        ac.*,
-        e.*,
+        ac.id,
+        ac.titre,
+        ac.description,
+        ac.dateDebut,
+        ac.dateFin,
+        ac.nombrePostes,
+        ac.lieu,
+        IF(ac.remuneration > 0, ac.remuneration, COALESCE(e.remuneration, 0)) as remuneration,
+        e.codeExamen,
+        e.dateExamen,
+        e.duree,
+        e.typeExamen,
         m.nom as nomMatiere,
         c.nomClasse,
         ufr.nom as nomUfr
