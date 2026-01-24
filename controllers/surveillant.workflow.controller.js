@@ -95,11 +95,23 @@ exports.getMesCandidatures = async (req, res) => {
         c.dateSoumission,
         ac.titre as titreAppel,
         ac.remuneration,
+        e.id as idExamen,
         e.codeExamen,
-        e.dateExamen
+        e.dateExamen,
+        e.duree,
+        e.typeExamen,
+        e.nombrePlaces,
+        m.nom as nomMatiere,
+        m.code as codeMatiere,
+        s.numero as salle,
+        s.batiment,
+        s.capacite as capaciteSalle
       FROM candidature c
       INNER JOIN appel_candidature ac ON c.idAppel = ac.id
       LEFT JOIN examen e ON ac.idExamen = e.id
+      LEFT JOIN matiere m ON e.idMatiere = m.id
+      LEFT JOIN session_examen se ON e.id = se.idExamen
+      LEFT JOIN salle s ON se.idSalle = s.id
       WHERE c.idUtilisateur = ?
       ORDER BY c.dateSoumission DESC`,
       [userId]
@@ -107,10 +119,18 @@ exports.getMesCandidatures = async (req, res) => {
     
     console.log('✅ getMesCandidatures - Nombre de candidatures:', candidatures.length);
 
+    // Formater les données pour inclure le lieu complet
+    const candidaturesFormatees = candidatures.map(cand => ({
+      ...cand,
+      lieu: cand.salle && cand.batiment 
+        ? `Salle ${cand.salle} - ${cand.batiment}`
+        : 'Non assigné'
+    }));
+
     return res.status(200).json({
       message: 'Mes candidatures',
-      data: candidatures,
-      count: candidatures.length
+      data: candidaturesFormatees,
+      count: candidaturesFormatees.length
     });
 
   } catch (error) {
