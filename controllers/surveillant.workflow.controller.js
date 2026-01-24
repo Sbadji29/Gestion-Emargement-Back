@@ -127,7 +127,14 @@ exports.getExamensAVenir = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Récupérer les examens liés aux candidatures ACCEPTÉES
+    // Récupérer l'ID surveillant lié à l'utilisateur
+    const [surveillants] = await db.promise().query('SELECT id FROM surveillant WHERE idUtilisateur = ?', [userId]);
+    if (surveillants.length === 0) {
+        return res.status(404).json({ message: 'Profil surveillant introuvable' });
+    }
+    const idSurveillant = surveillants[0].id;
+
+    // Récupérer les examens liés aux candidatures ACCEPTÉES avec les détails de la session assignée
     const [examens] = await db.promise().query(
       `SELECT 
         e.id as idExamen,
@@ -138,16 +145,31 @@ exports.getExamensAVenir = async (req, res) => {
         ac.remuneration,
         ac.titre as titreAppel,
         c.statut as statutCandidature,
-        ufr.nom as nomUfr
+        ufr.nom as nomUfr,
+        m.nom as nomMatiere,
+        cl.nomClasse,
+        se.id as idSession,
+        se.heureDebut,
+        se.heureFin,
+        se.nombreInscrits as nombreEtudiantsSession,
+        s.numero as numeroSalle,
+        s.batiment as batimentSalle,
+        s.capacite as capaciteSalle
       FROM candidature c
       INNER JOIN appel_candidature ac ON c.idAppel = ac.id
       INNER JOIN examen e ON ac.idExamen = e.id
       LEFT JOIN ufr ON ac.idUfr = ufr.id
+      LEFT JOIN matiere m ON e.idMatiere = m.id
+      LEFT JOIN classe cl ON m.idClasse = cl.id
+      -- Jointure pour trouver la session spécifique assignée ce surveillant pour cet examen
+      LEFT JOIN session_surveillant ss ON ss.idSurveillant = ?
+      LEFT JOIN session_examen se ON se.id = ss.idSession AND se.idExamen = e.id
+      LEFT JOIN salle s ON se.idSalle = s.id
       WHERE c.idUtilisateur = ?
       AND c.statut = 'Accepte'
       AND e.statut NOT IN ('Termine', 'Annule')
       ORDER BY e.dateExamen ASC`,
-      [userId]
+      [idSurveillant, userId]
     );
 
     return res.status(200).json({
