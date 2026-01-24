@@ -27,13 +27,14 @@ exports.getOpportunites = async (req, res) => {
     const [opportunites] = await db.promise().query(
       `SELECT 
         ac.*,
-        e.codeExamen,
-        e.dateExamen,
-        e.duree,
-        e.typeExamen,
+        e.*,
+        m.nom as nomMatiere,
+        c.nomClasse,
         ufr.nom as nomUfr
       FROM appel_candidature ac
       LEFT JOIN examen e ON ac.idExamen = e.id
+      LEFT JOIN matiere m ON e.idMatiere = m.id
+      LEFT JOIN classe c ON m.idClasse = c.id
       LEFT JOIN ufr ON ac.idUfr = ufr.id
       WHERE ac.statut = 'Ouvert'
       AND ac.idUfr = ?

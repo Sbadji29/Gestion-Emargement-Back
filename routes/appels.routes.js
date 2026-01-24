@@ -42,6 +42,11 @@ router.use(authMiddleware);
  *           type: integer
  *           description: Nombre de postes disponibles
  *           example: 10
+ *         remuneration:
+ *           type: number
+ *           format: float
+ *           description: Rémunération par surveillant (optionnel)
+ *           example: 50.00
  *         lieu:
  *           type: string
  *           description: Lieu de surveillance
@@ -106,6 +111,11 @@ router.use(authMiddleware);
  *           minimum: 1
  *           default: 1
  *           example: 10
+ *         remuneration:
+ *           type: number
+ *           minimum: 0
+ *           default: 0
+ *           example: 50.00
  *         lieu:
  *           type: string
  *           example: "Campus principal - Bâtiment A"
@@ -140,7 +150,7 @@ router.use(authMiddleware);
  *           type: integer
  *           description: Postes restants à pourvoir
  *           example: 2
- */
+ * */
 
 /**
  * @swagger
@@ -171,6 +181,7 @@ router.use(authMiddleware);
  *                 idExamen: 5
  *                 idUfr: 1
  *                 nombrePostes: 10
+ *                 remuneration: 50.00
  *                 lieu: "Campus principal"
  *                 qualificationsRequises: "Licence minimum"
  *                 dateDebut: "2024-06-15"

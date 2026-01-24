@@ -19,15 +19,15 @@ exports.delete = async (req, res) => {
 // Créer un appel de candidature (ADMIN/SUPERADMIN)
 exports.create = async (req, res) => {
     try {
-        const { titre, description, idExamen, idUfr, nombrePostes, lieu, qualificationsRequises, dateDebut, dateFin } = req.body;
+        const { titre, description, idExamen, idUfr, nombrePostes, remuneration, lieu, qualificationsRequises, dateDebut, dateFin } = req.body;
         const idCreateur = req.user.id;
 
         if (!titre) return res.status(400).json({ message: 'Le titre est obligatoire' });
 
         const [result] = await db.query(
-            `INSERT INTO appel_candidature (titre, description, idExamen, idUfr, nombrePostes, lieu, qualificationsRequises, dateDebut, dateFin, idCreateur)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [titre, description || null, idExamen || null, idUfr || null, nombrePostes || 1, lieu || null, qualificationsRequises || null, dateDebut || null, dateFin || null, idCreateur]
+            `INSERT INTO appel_candidature (titre, description, idExamen, idUfr, nombrePostes, remuneration, lieu, qualificationsRequises, dateDebut, dateFin, idCreateur)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [titre, description || null, idExamen || null, idUfr || null, nombrePostes || 1, remuneration || 0, lieu || null, qualificationsRequises || null, dateDebut || null, dateFin || null, idCreateur]
         );
 
         return res.status(201).json({ message: 'Appel de candidature créé', data: { id: result.insertId } });

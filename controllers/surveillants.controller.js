@@ -3,8 +3,46 @@ const bcrypt = require('bcryptjs');
 
 /**
  * Supprimer un surveillant par ID utilisateur
+ * Delete surveillant
  * DELETE /api/surveillants/:id
  */
+exports.getEarnings = async (req, res) => {
+  try {
+    const idUtilisateur = req.user.id; // Surveillant connecté
+
+    const [rows] = await db.promise().query(`
+      SELECT 
+        ac.id as idAppel,
+        ac.titre,
+        ac.remuneration,
+        ac.dateDebut,
+        ac.dateFin,
+        ac.lieu,
+        c.dateCandidature
+      FROM candidature c
+      JOIN appel_candidature ac ON c.idAppel = ac.id
+      WHERE c.idUtilisateur = ?
+      AND c.statut = 'Accepte'
+      ORDER BY c.dateCandidature DESC
+    `, [idUtilisateur]);
+
+    // Calcul du total
+    const totalEarnings = rows.reduce((sum, item) => sum + parseFloat(item.remuneration || 0), 0);
+
+    res.json({
+      message: 'Gains récupérés avec succès',
+      data: {
+        total: totalEarnings,
+        details: rows
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur récupération gains:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
 exports.deleteSurveillant = async (req, res) => {
   try {
     const { id } = req.params;

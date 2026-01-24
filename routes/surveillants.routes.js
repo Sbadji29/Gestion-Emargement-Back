@@ -147,6 +147,49 @@ router.get('/mes-affectations',
 
 /**
  * @swagger
+ * /api/surveillants/mes-gains:
+ *   get:
+ *     summary: Obtenir le total des gains liés aux candidatures acceptées
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Total des gains et détails
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: number
+ *                       description: Somme totale des rémunérations
+ *                     details:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           idAppel:
+ *                             type: integer
+ *                           titre:
+ *                             type: string
+ *                           remuneration:
+ *                             type: number
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
+router.get('/mes-gains',
+  roleMiddleware(['SURVEILLANT']),
+  surveillantsController.getEarnings
+);
+
+/**
+ * @swagger
  * /api/surveillants/disponibilite:
  *   patch:
  *     summary: Changer la disponibilité du surveillant connecté
