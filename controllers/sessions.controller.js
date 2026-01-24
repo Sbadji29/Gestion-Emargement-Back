@@ -520,7 +520,7 @@ exports.getEmargements = async (req, res) => {
     });
 
     // Récupérer tous les étudiants inscrits à la matière de l'examen
-    // Utilise la même logique que getEtudiants dans examens.controller.js
+    // Utilise EXACTEMENT la même logique que GET /api/examens/:id/etudiants
     const [etudiants] = await db.promise().query(
       `SELECT DISTINCT
         e.id as idEtudiant,
@@ -528,14 +528,12 @@ exports.getEmargements = async (req, res) => {
         u.nom,
         u.prenom,
         u.email,
-        c.nomClasse,
-        sec.nomSection
+        c.nomClasse
       FROM inscription_matiere im
       INNER JOIN inscription i ON im.idInscription = i.id
       INNER JOIN etudiant e ON i.idEtudiant = e.id
       INNER JOIN utilisateur u ON e.idUtilisateur = u.idUtilisateur
       LEFT JOIN classe c ON i.idClasse = c.id
-      LEFT JOIN section sec ON i.idSection = sec.id
       WHERE im.idMatiere = ?
       ORDER BY u.nom, u.prenom`,
       [sessionData.idMatiere]
@@ -604,7 +602,6 @@ exports.getEmargements = async (req, res) => {
         prenom: etudiant.prenom,
         email: etudiant.email,
         classe: etudiant.nomClasse,
-        section: etudiant.nomSection,
         statut: emargement ? emargement.statut : 'INSCRIT',
         dateHeure: emargement ? emargement.dateHeure : null,
         surveillant: emargement ? emargement.surveillant : null
