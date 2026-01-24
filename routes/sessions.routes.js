@@ -379,6 +379,126 @@ router.patch('/:id/end',
 
 /**
  * @swagger
+ * /api/sessions/{id}/emargements:
+ *   get:
+ *     summary: Récupérer la liste des émargements d'une session en temps réel
+ *     description: >
+ *       Retourne tous les étudiants inscrits à l'examen avec leur statut d'émargement actuel.
+ *       Permet de voir en temps réel qui est présent, absent, ou a rendu sa copie.
+ *       Inclut également des statistiques globales (taux de présence, nombre de copies rendues, etc.)
+ *     tags: [Sessions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la session
+ *     responses:
+ *       200:
+ *         description: Liste complète des émargements avec statistiques
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Liste des émargements
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     session:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                         idExamen:
+ *                           type: integer
+ *                         codeExamen:
+ *                           type: string
+ *                         dateExamen:
+ *                           type: string
+ *                           format: date-time
+ *                         heureDebut:
+ *                           type: string
+ *                           format: date-time
+ *                           nullable: true
+ *                         heureFin:
+ *                           type: string
+ *                           format: date-time
+ *                           nullable: true
+ *                     statistiques:
+ *                       type: object
+ *                       properties:
+ *                         total:
+ *                           type: integer
+ *                           description: Nombre total d'étudiants inscrits
+ *                         inscrits:
+ *                           type: integer
+ *                           description: Nombre d'étudiants pas encore émargés
+ *                         presents:
+ *                           type: integer
+ *                           description: Nombre d'étudiants présents
+ *                         absents:
+ *                           type: integer
+ *                           description: Nombre d'étudiants absents
+ *                         copiesRendues:
+ *                           type: integer
+ *                           description: Nombre de copies rendues
+ *                         tauxPresence:
+ *                           type: number
+ *                           format: float
+ *                           description: Taux de présence en pourcentage
+ *                     etudiants:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           idEtudiant:
+ *                             type: integer
+ *                           codeEtudiant:
+ *                             type: string
+ *                           nom:
+ *                             type: string
+ *                           prenom:
+ *                             type: string
+ *                           email:
+ *                             type: string
+ *                           classe:
+ *                             type: string
+ *                           section:
+ *                             type: string
+ *                           statut:
+ *                             type: string
+ *                             enum: [INSCRIT, Present, Absent, COPIE_RENDUE]
+ *                             description: Statut actuel de l'étudiant
+ *                           dateHeure:
+ *                             type: string
+ *                             format: date-time
+ *                             nullable: true
+ *                             description: Date et heure du dernier scan
+ *                           surveillant:
+ *                             type: object
+ *                             nullable: true
+ *                             properties:
+ *                               id:
+ *                                 type: integer
+ *                               nom:
+ *                                 type: string
+ *                               prenom:
+ *                                 type: string
+ *       404:
+ *         description: Session non trouvée
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
+router.get('/:id/emargements', sessionsController.getEmargements);
+
+/**
+ * @swagger
  * /api/sessions/{id}:
  *   delete:
  *     summary: Supprimer une session d'examen par ID

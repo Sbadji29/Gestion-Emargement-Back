@@ -486,3 +486,135 @@ exports.endSession = async (req, res) => {
     });
   }
 };
+
+/**
+ * Récupérer la liste des émargements d'une session
+ * GET /api/sessions/:id/emargements
+ */
+exports.getEmargements = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Vérifier que la session existe
+    const [session] = await db.promise().query(
+      `SELECT se.*, e.idMatiere, e.codeExamen, e.dateExamen
+       FROM session_examen se
+       INNER JOIN examen e ON se.idExamen = e.id
+       WHERE se.id = ?`,
+      [id]
+    );
+
+    if (session.length === 0) {
+      return res.status(404).json({
+        message: 'Session non trouvée'
+      });
+    }
+
+    const sessionData = session[0];
+
+    // Récupérer tous les étudiants inscrits à la matière de l'examen
+    const [etudiants] = await db.promise().query(
+      `SELECT DISTINCT
+        e.id as idEtudiant,
+        e.codeEtudiant,
+        u.nom,
+        u.prenom,
+        u.email,
+        c.nomClasse,
+        s.nomSection
+      FROM inscription_matiere im
+      INNER JOIN inscription i ON im.idInscription = i.id
+      INNER JOIN etudiant e ON i.idEtudiant = e.id
+      INNER JOIN utilisateur u ON e.idUtilisateur = u.idUtilisateur
+      LEFT JOIN classe c ON i.idClasse = c.id
+      LEFT JOIN section s ON i.idSection = s.id
+      WHERE im.idMatiere = ?
+      ORDER BY u.nom, u.prenom`,
+      [sessionData.idMatiere]
+    );
+
+    // Récupérer les émargements existants pour cette session
+    const [emargements] = await db.promise().query(
+      `SELECT 
+        em.idEtudiant,
+        em.statut,
+        em.dateHeure,
+        surv.id as idSurveillant,
+        us.nom as nomSurveillant,
+        us.prenom as prenomSurveillant
+      FROM emargement em
+      LEFT JOIN surveillant surv ON em.idSurveillant = surv.id
+      LEFT JOIN utilisateur us ON surv.idUtilisateur = us.idUtilisateur
+      WHERE em.idSession = ?`,
+      [id]
+    );
+
+    // Créer un map des émargements par idEtudiant
+    const emargementMap = {};
+    emargements.forEach(em => {
+      emargementMap[em.idEtudiant] = {
+        statut: em.statut,
+        dateHeure: em.dateHeure,
+        surveillant: em.idSurveillant ? {
+          id: em.idSurveillant,
+          nom: em.nomSurveillant,
+          prenom: em.prenomSurveillant
+        } : null
+      };
+    });
+
+    // Fusionner les données : tous les étudiants avec leur statut d'émargement
+    const listeComplete = etudiants.map(etudiant => {
+      const emargement = emargementMap[etudiant.idEtudiant];
+      return {
+        idEtudiant: etudiant.idEtudiant,
+        codeEtudiant: etudiant.codeEtudiant,
+        nom: etudiant.nom,
+        prenom: etudiant.prenom,
+        email: etudiant.email,
+        classe: etudiant.nomClasse,
+        section: etudiant.nomSection,
+        statut: emargement ? emargement.statut : 'INSCRIT',
+        dateHeure: emargement ? emargement.dateHeure : null,
+        surveillant: emargement ? emargement.surveillant : null
+      };
+    });
+
+    // Calculer les statistiques
+    const stats = {
+      total: listeComplete.length,
+      inscrits: listeComplete.filter(e => e.statut === 'INSCRIT').length,
+      presents: listeComplete.filter(e => e.statut === 'Present').length,
+      absents: listeComplete.filter(e => e.statut === 'Absent').length,
+      copiesRendues: listeComplete.filter(e => e.statut === 'COPIE_RENDUE').length,
+      tauxPresence: listeComplete.length > 0 
+        ? ((listeComplete.filter(e => e.statut === 'Present' || e.statut === 'COPIE_RENDUE').length / listeComplete.length) * 100).toFixed(2)
+        : 0
+    };
+
+    return res.status(200).json({
+      message: 'Liste des émargements',
+      data: {
+        session: {
+          id: sessionData.id,
+          idExamen: sessionData.idExamen,
+          codeExamen: sessionData.codeExamen,
+          dateExamen: sessionData.dateExamen,
+          heureDebut: sessionData.heureDebut,
+          heureFin: sessionData.heureFin,
+          nombreInscrits: sessionData.nombreInscrits,
+          nombrePresents: sessionData.nombrePresents
+        },
+        statistiques: stats,
+        etudiants: listeComplete
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur récupération émargements:', error);
+    return res.status(500).json({
+      message: 'Erreur lors de la récupération des émargements',
+      error: error.message
+    });
+  }
+};
