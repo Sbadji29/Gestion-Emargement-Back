@@ -6,7 +6,7 @@
 const axios = require('axios');
 const db = require('../config/db');
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = URL || 'http://localhost:3000';
 const API_BASE = `${BASE_URL}/api`;
 
 // Configuration des couleurs pour les logs
