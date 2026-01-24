@@ -124,7 +124,7 @@ exports.getExamensAVenir = async (req, res) => {
       LEFT JOIN ufr ON ac.idUfr = ufr.id
       WHERE c.idUtilisateur = ?
       AND c.statut = 'Accepte'
-      AND e.dateExamen >= NOW()
+      AND e.statut NOT IN ('Termine', 'Annule')
       ORDER BY e.dateExamen ASC`,
       [userId]
     );
@@ -144,69 +144,129 @@ exports.getExamensAVenir = async (req, res) => {
  * GET /surveillant/tableau-de-bord
  * Statistiques et historique.
  */
-exports.getDashboard = async (req, res) => {
-  try {
-    const userId = req.user.id;
+  /**
+   * GET /surveillant/tableau-de-bord
+   * Statistiques et historique complet pour le dashboard.
+   */
+  exports.getDashboard = async (req, res) => {
+    try {
+      const userId = req.user.id;
 
-    const [surveillant] = await db.promise().query(
-      'SELECT id FROM surveillant WHERE idUtilisateur = ?',
-      [userId]
-    );
+      const [surveillant] = await db.promise().query(
+        'SELECT id FROM surveillant WHERE idUtilisateur = ?',
+        [userId]
+      );
 
-    if (surveillant.length === 0) {
-      return res.status(404).json({ message: 'Profil surveillant non trouvé' });
-    }
-    const idSurveillant = surveillant[0].id;
-
-    // 1. Total Gain : Somme des rémunérations des candidatures ACCEPTÉES
-    const [gains] = await db.promise().query(
-      `SELECT SUM(ac.remuneration) as totalRemuneration
-       FROM candidature c
-       INNER JOIN appel_candidature ac ON c.idAppel = ac.id
-       WHERE c.idUtilisateur = ?
-       AND c.statut = 'Accepte'`,
-      [userId]
-    );
-
-    // 2. Count Examens Surveillés (Terminés - via session)
-    // On garde l'historique réel "sur le terrain"
-    const [historique] = await db.promise().query(
-      `SELECT count(*) as total
-       FROM session_examen se
-       INNER JOIN session_surveillant ss ON se.id = ss.idSession
-       INNER JOIN examen e ON se.idExamen = e.id
-       WHERE ss.idSurveillant = ?
-       AND e.statut = 'Termine'`,
-      [idSurveillant]
-    );
-
-    // 3. Prochains examens (basé sur les candidatures acceptées)
-    const [prochains] = await db.promise().query(
-      `SELECT e.codeExamen, e.dateExamen, ac.titre 
-         FROM candidature c
-         INNER JOIN appel_candidature ac ON c.idAppel = ac.id
-         JOIN examen e ON ac.idExamen = e.id 
-         WHERE c.idUtilisateur = ? 
-         AND c.statut = 'Accepte'
-         AND e.dateExamen > NOW() 
-         ORDER BY e.dateExamen LIMIT 3`,
-      [userId]
-    );
-
-    return res.status(200).json({
-      message: 'Tableau de bord',
-      data: {
-        totalExamensSurveilles: historique[0].total || 0,
-        totalGain: gains[0].totalRemuneration || 0,
-        prochainsExamens: prochains
+      if (surveillant.length === 0) {
+        return res.status(404).json({ message: 'Profil surveillant non trouvé' });
       }
-    });
+      const idSurveillant = surveillant[0].id;
 
-  } catch (error) {
-    console.error('Erreur dashboard:', error);
-    return res.status(500).json({ message: 'Erreur serveur', error: error.message });
-  }
-};
+      // 1. Examens à venir (Acceptés)
+      // Modifié: On regarde le statut de l'examen (Planifie/EnCours) plutôt que la date stricte
+      // pour afficher les examens en retard ou dont la date est passée mais pas clôturés.
+      const [prochainsExamens] = await db.promise().query(
+        `SELECT 
+          e.id, 
+          e.codeExamen, 
+          e.dateExamen, 
+          e.duree,
+          e.typeExamen,
+          ac.titre as titreAppel,
+          ac.remuneration,
+          m.nom as nomMatiere,
+          c.nomClasse,
+          cand.statut
+         FROM candidature cand
+         INNER JOIN appel_candidature ac ON cand.idAppel = ac.id
+         INNER JOIN examen e ON ac.idExamen = e.id
+         LEFT JOIN matiere m ON e.idMatiere = m.id
+         LEFT JOIN classe c ON m.idClasse = c.id
+         WHERE cand.idUtilisateur = ? 
+         AND cand.statut = 'Accepte'
+         AND e.statut NOT IN ('Termine', 'Annule')
+         ORDER BY e.dateExamen ASC
+         LIMIT 5`,
+        [userId]
+      );
+
+      // Count Examens à venir
+      const [[countExamensAVenir]] = await db.promise().query(
+        `SELECT COUNT(*) as count
+         FROM candidature cand
+         INNER JOIN appel_candidature ac ON cand.idAppel = ac.id
+         INNER JOIN examen e ON ac.idExamen = e.id
+         WHERE cand.idUtilisateur = ? 
+         AND cand.statut = 'Accepte'
+         AND e.statut NOT IN ('Termine', 'Annule')`,
+        [userId]
+      );
+
+      // 2. Candidatures en attente (Soumis OU EnAttente)
+      const [candidaturesEnAttente] = await db.promise().query(
+        `SELECT 
+          cand.id,
+          cand.dateSoumission,
+          ac.titre as titreAppel,
+          e.dateExamen,
+          e.codeExamen,
+          cand.statut
+         FROM candidature cand
+         INNER JOIN appel_candidature ac ON cand.idAppel = ac.id
+         INNER JOIN examen e ON ac.idExamen = e.id
+         WHERE cand.idUtilisateur = ? 
+         AND cand.statut IN ('Soumis', 'EnAttente')
+         ORDER BY cand.dateSoumission DESC
+         LIMIT 5`,
+        [userId]
+      );
+
+      // Count En Attente
+      const [[countEnAttente]] = await db.promise().query(
+        `SELECT COUNT(*) as count
+         FROM candidature cand
+         WHERE idUtilisateur = ? 
+         AND statut IN ('Soumis', 'EnAttente')`,
+        [userId]
+      );
+
+      // 3. Surveillances récentes (Sessions terminées)
+      const [surveillancesRecentes] = await db.promise().query(
+        `SELECT 
+          se.id,
+          se.heureDebut,
+          se.heureFin,
+          e.codeExamen,
+          m.nom as nomMatiere
+         FROM session_examen se
+         INNER JOIN session_surveillant ss ON se.id = ss.idSession
+         INNER JOIN examen e ON se.idExamen = e.id
+         LEFT JOIN matiere m ON e.idMatiere = m.id
+         WHERE ss.idSurveillant = ?
+         AND se.heureFin IS NOT NULL
+         ORDER BY se.heureFin DESC
+         LIMIT 5`,
+        [idSurveillant]
+      );
+
+      return res.status(200).json({
+        message: 'Tableau de bord complet',
+        data: {
+          counts: {
+            examensAVenir: countExamensAVenir.count,
+            enAttente: countEnAttente.count
+          },
+          prochainsExamens,
+          candidaturesEnAttente,
+          surveillancesRecentes
+        }
+      });
+
+    } catch (error) {
+      console.error('Erreur dashboard:', error);
+      return res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    }
+  };
 
 /**
  * GET /surveillant/profil

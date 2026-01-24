@@ -303,59 +303,67 @@ const classeController = {
 
   // Supprimer une classe
   delete: async (req, res) => {
+    let connection;
     try {
       const { id } = req.params;
 
+      connection = await db.promise().getConnection();
+      await connection.beginTransaction();
+
       // Vérifier si la classe existe
-      const [existing] = await db.promise().query(
+      const [existing] = await connection.query(
         "SELECT id FROM classe WHERE id = ?",
         [id]
       );
 
       if (existing.length === 0) {
+        await connection.rollback();
         return res.status(404).json({ 
           message: "Classe non trouvée" 
         });
       }
 
-      // Vérifier si la classe est utilisée dans des inscriptions
-      const [inscriptions] = await db.promise().query(
-        "SELECT COUNT(*) as count FROM inscription WHERE idClasse = ?",
+      // 1. Détacher les étudiants (idClasse -> NULL) (Préserve le profil étudiant)
+      await connection.query(
+        "UPDATE etudiant SET idClasse = NULL WHERE idClasse = ?",
         [id]
       );
 
-      if (inscriptions[0].count > 0) {
-        return res.status(409).json({ 
-          message: "Impossible de supprimer cette classe car elle contient des inscriptions" 
-        });
-      }
-
-      // Vérifier si la classe a des matières
-      const [matieres] = await db.promise().query(
-        "SELECT COUNT(*) as count FROM matiere WHERE idClasse = ?",
+      // 2. Supprimer les inscriptions (Lien spécifique classe-étudiant)
+      // Note: inscription_matiere sera supprimé en cascade si configuré dans la DB, 
+      // sinon on devrait le faire manuellement. Par sécurité on suppose la cascade DB sur inscription_matiere.
+      // (Vérifié: inscription_matiere a ON DELETE CASCADE sur idInscription)
+      await connection.query(
+        "DELETE FROM inscription WHERE idClasse = ?",
         [id]
       );
 
-      if (matieres[0].count > 0) {
-        return res.status(409).json({ 
-          message: "Impossible de supprimer cette classe car elle contient des matières" 
-        });
-      }
+      // 3. Détacher les matières (idClasse -> NULL) (Préserve la définition de la matière)
+      await connection.query(
+        "UPDATE matiere SET idClasse = NULL WHERE idClasse = ?",
+        [id]
+      );
 
-      await db.promise().query(
+      // 4. Supprimer la classe
+      await connection.query(
         "DELETE FROM classe WHERE id = ?",
         [id]
       );
 
+      await connection.commit();
+
       res.status(200).json({
-        message: "Classe supprimée avec succès"
+        message: "Classe supprimée avec succès (Étudiants et matières détachés, inscriptions supprimées)"
       });
     } catch (error) {
+      if (connection) await connection.rollback();
       console.error("Erreur suppression classe:", error);
       res.status(500).json({ 
         message: "Erreur lors de la suppression de la classe",
         error: error.message 
       });
+    } finally {
+      if (connection) connection.release();
     }
   }
 };

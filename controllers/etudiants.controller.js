@@ -282,7 +282,7 @@ exports.getByClasse = async (req, res) => {
       `SELECT 
         e.id,
         e.codeEtudiant,
-        e.idClasse,
+        i.idClasse,
         e.idSection,
         e.idUfr,
         u.idUtilisateur,
@@ -293,9 +293,10 @@ exports.getByClasse = async (req, res) => {
         s.nomSection
       FROM etudiant e
       INNER JOIN utilisateur u ON e.idUtilisateur = u.idUtilisateur
-      LEFT JOIN classe c ON e.idClasse = c.id
+      INNER JOIN inscription i ON e.id = i.idEtudiant
+      INNER JOIN classe c ON i.idClasse = c.id
       LEFT JOIN section s ON e.idSection = s.id
-      WHERE e.idClasse = ?
+      WHERE i.idClasse = ? AND i.statut = 'Active'
       ORDER BY u.nom, u.prenom`,
       [idClasse]
     );
