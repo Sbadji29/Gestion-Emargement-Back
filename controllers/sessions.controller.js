@@ -464,7 +464,7 @@ exports.endSession = async (req, res) => {
       });
     }
 
-    // Mettre à jour heureFin, libérer la salle ET changer le statut de l'examen
+    // Mettre à jour heureFin, gérer les absents, libérer la salle ET changer le statut de l'examen
     const connection = await db.promise().getConnection();
     try {
       await connection.beginTransaction();
@@ -475,19 +475,49 @@ exports.endSession = async (req, res) => {
         [heureFin, id]
       );
 
-      // 2. Récupérer l'idSalle pour la libérer
+      // 2. Marquer comme Absent tous les étudiants inscrits qui n'ont pas émargé
+      // Récupérer tous les étudiants inscrits à la matière de l'examen
+      const [etudiantsInscrits] = await connection.query(
+        `SELECT DISTINCT e.id as idEtudiant
+         FROM inscription_matiere im
+         INNER JOIN inscription i ON im.idInscription = i.id
+         INNER JOIN etudiant e ON i.idEtudiant = e.id
+         INNER JOIN session_examen se ON se.id = ?
+         INNER JOIN examen ex ON se.idExamen = ex.id
+         WHERE im.idMatiere = ex.idMatiere`,
+        [id]
+      );
+
+      // Pour chaque étudiant inscrit, vérifier s'il a émargé
+      for (const etudiant of etudiantsInscrits) {
+        const [emargement] = await connection.query(
+          'SELECT id, statut FROM emargement WHERE idSession = ? AND idEtudiant = ?',
+          [id, etudiant.idEtudiant]
+        );
+
+        if (emargement.length === 0) {
+          // Pas d'émargement -> Créer avec statut Absent
+          await connection.query(
+            'INSERT INTO emargement (idSession, idEtudiant, statut, dateHeure) VALUES (?, ?, ?, NULL)',
+            [id, etudiant.idEtudiant, 'Absent']
+          );
+        }
+        // Si émargement existe avec statut Present ou COPIE_RENDUE, on ne touche pas
+      }
+
+      // 3. Récupérer l'idSalle pour la libérer
       const [sessionData] = await connection.query(
         'SELECT idSalle FROM session_examen WHERE id = ?',
         [id]
       );
 
-      // 3. Libérer la salle
+      // 4. Libérer la salle
       await connection.query(
         "UPDATE salle SET statut = 'Disponible' WHERE id = ?",
         [sessionData[0].idSalle]
       );
 
-      // 4. Mettre à jour le statut de l'examen à 'Termine'
+      // 5. Mettre à jour le statut de l'examen à 'Termine'
       await connection.query(
         "UPDATE examen SET statut = 'Termine' WHERE id = ?",
         [session[0].idExamen]
@@ -495,7 +525,7 @@ exports.endSession = async (req, res) => {
 
       await connection.commit();
 
-      console.log(`✅ Session ${id} terminée - Examen ${session[0].idExamen} passé à Termine`);
+      console.log(`✅ Session ${id} terminée - Examen ${session[0].idExamen} passé à Termine - Absents enregistrés`);
 
     } catch (error) {
       await connection.rollback();
