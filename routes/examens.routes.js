@@ -258,6 +258,53 @@ router.post('/',
  *         description: Non authentifié
  */
 
+/**
+ * @swagger
+ * /api/examens/{id}:
+ *   put:
+ *     summary: Modifier un examen existant
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               codeExamen:
+ *                 type: string
+ *               dateExamen:
+ *                 type: string
+ *                 format: date-time
+ *               duree:
+ *                 type: integer
+ *               typeExamen:
+ *                 type: string
+ *               nombrePlaces:
+ *                 type: integer
+ *               idMatiere:
+ *                 type: integer
+ *               remuneration:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Examen mis à jour
+ *       404:
+ *         description: Examen non trouvé
+ *     roles:
+ *       - ADMIN
+ *       - SUPERADMIN
+ */
+router.put('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), examensController.update);
+
 // ... (continuer de la même façon pour les autres routes : put, delete, sessions, get by id, get all)
 
 // ... (previous code)

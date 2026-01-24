@@ -142,16 +142,16 @@ exports.getById = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { codeExamen, dateExamen, duree, typeExamen, nombrePlaces, idMatiere } = req.body;
+    const { codeExamen, dateExamen, duree, typeExamen, nombrePlaces, idMatiere, remuneration } = req.body;
 
     // Convertir la date au format MySQL
     const mysqlDate = new Date(dateExamen).toISOString().slice(0, 19).replace('T', ' ');
 
     const [result] = await db.promise().query(
       `UPDATE examen 
-       SET codeExamen = ?, dateExamen = ?, duree = ?, typeExamen = ?, nombrePlaces = ?, idMatiere = ?
+       SET codeExamen = ?, dateExamen = ?, duree = ?, typeExamen = ?, nombrePlaces = ?, idMatiere = ?, remuneration = ?
        WHERE id = ?`,
-      [codeExamen, mysqlDate, duree, typeExamen, nombrePlaces, idMatiere, id]
+      [codeExamen, mysqlDate, duree, typeExamen, nombrePlaces, idMatiere, remuneration || 0, id]
     );
 
     if (result.affectedRows === 0) {

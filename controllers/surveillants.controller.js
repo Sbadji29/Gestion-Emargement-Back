@@ -43,6 +43,39 @@ exports.getEarnings = async (req, res) => {
   }
 };
 
+/**
+ * Get surveillant statistics (Total exams & duration)
+ * GET /api/surveillants/:id/stats
+ */
+exports.getSurveillantStats = async (req, res) => {
+  try {
+    const { id } = req.params; // idUtilisateur
+
+    const [stats] = await db.promise().query(`
+      SELECT 
+        COUNT(e.id) as totalExams,
+        SUM(e.duree) as totalDuration
+      FROM candidature c
+      JOIN appel_candidature ac ON c.idAppel = ac.id
+      JOIN examen e ON ac.idExamen = e.id
+      WHERE c.idUtilisateur = ?
+      AND c.statut = 'Accepte'
+    `, [id]);
+
+    res.json({
+      message: 'Statistiques du surveillant',
+      data: {
+        totalExams: stats[0].totalExams || 0,
+        totalDuration: stats[0].totalDuration || 0
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur stats surveillant:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
 exports.deleteSurveillant = async (req, res) => {
   try {
     const { id } = req.params;

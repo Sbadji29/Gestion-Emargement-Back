@@ -300,6 +300,46 @@ router.get('/statistics',
 
 /**
  * @swagger
+ * /api/surveillants/{id}/stats:
+ *   get:
+ *     summary: Obtenir les statistiques d'un surveillant (Total examens et durée)
+ *     tags: [Surveillants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de l'utilisateur surveillant
+ *     responses:
+ *       200:
+ *         description: Statistiques récupérées
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalExams:
+ *                       type: integer
+ *                     totalDuration:
+ *                       type: integer
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
+router.get('/:id/stats',
+  roleMiddleware(['ADMIN', 'SUPERADMIN']),
+  surveillantsController.getSurveillantStats
+);
+
+/**
+ * @swagger
  * /api/surveillants/{id}:
  *   delete:
  *     summary: Supprimer un surveillant par ID utilisateur
