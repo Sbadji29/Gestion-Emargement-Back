@@ -1,3 +1,5 @@
+const db = require('../config/db.config');
+
 // Supprimer une candidature par ID
 exports.delete = async (req, res) => {
     try {
@@ -13,7 +15,6 @@ exports.delete = async (req, res) => {
         return res.status(500).json({ message: 'Erreur serveur', error: error.message });
     }
 };
-const db = require('../config/db.config');
 
 // Surveillant postule à un appel (upload CV optionnel)
 exports.apply = async (req, res) => {

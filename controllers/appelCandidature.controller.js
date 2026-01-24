@@ -1,3 +1,5 @@
+const db = require('../config/db.config');
+
 // Supprimer un appel de candidature par ID
 exports.delete = async (req, res) => {
     try {
@@ -13,7 +15,6 @@ exports.delete = async (req, res) => {
         return res.status(500).json({ message: 'Erreur serveur', error: error.message });
     }
 };
-const db = require('../config/db.config');
 
 // Créer un appel de candidature (ADMIN/SUPERADMIN)
 exports.create = async (req, res) => {
@@ -126,7 +127,7 @@ exports.getByUserUfr = async (req, res) => {
         if (!idUfr) return res.status(404).json({ message: 'UFR introuvable pour l\'utilisateur' });
 
         const [rows] = await db.query(
-            `SELECT a.*, uf.nom as nomUfr
+            `SELECT a.*, ufr.nom as nomUfr
        FROM appel_candidature a
        LEFT JOIN ufr ON a.idUfr = ufr.id
        WHERE a.idUfr = ?
