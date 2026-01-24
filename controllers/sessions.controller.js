@@ -512,7 +512,15 @@ exports.getEmargements = async (req, res) => {
 
     const sessionData = session[0];
 
+    console.log('📊 [DEBUG] Session Data:', {
+      sessionId: id,
+      idExamen: sessionData.idExamen,
+      idMatiere: sessionData.idMatiere,
+      codeExamen: sessionData.codeExamen
+    });
+
     // Récupérer tous les étudiants inscrits à la matière de l'examen
+    // Utilise la même logique que getEtudiants dans examens.controller.js
     const [etudiants] = await db.promise().query(
       `SELECT DISTINCT
         e.id as idEtudiant,
@@ -521,17 +529,38 @@ exports.getEmargements = async (req, res) => {
         u.prenom,
         u.email,
         c.nomClasse,
-        s.nomSection
+        sec.nomSection
       FROM inscription_matiere im
       INNER JOIN inscription i ON im.idInscription = i.id
       INNER JOIN etudiant e ON i.idEtudiant = e.id
       INNER JOIN utilisateur u ON e.idUtilisateur = u.idUtilisateur
       LEFT JOIN classe c ON i.idClasse = c.id
-      LEFT JOIN section s ON i.idSection = s.id
+      LEFT JOIN section sec ON i.idSection = sec.id
       WHERE im.idMatiere = ?
       ORDER BY u.nom, u.prenom`,
       [sessionData.idMatiere]
     );
+
+    console.log('📊 [DEBUG] Étudiants trouvés:', etudiants.length);
+
+    // Si aucun étudiant trouvé, vérifier si la matière a des inscriptions
+    if (etudiants.length === 0) {
+      console.warn('⚠️ [WARNING] Aucun étudiant trouvé pour idMatiere:', sessionData.idMatiere);
+      
+      // Vérifier si la matière existe
+      const [matiereCheck] = await db.promise().query(
+        'SELECT id, nom FROM matiere WHERE id = ?',
+        [sessionData.idMatiere]
+      );
+      console.log('📚 [DEBUG] Matière:', matiereCheck);
+      
+      // Vérifier s'il y a des inscriptions à cette matière
+      const [inscriptionsCheck] = await db.promise().query(
+        'SELECT COUNT(*) as count FROM inscription_matiere WHERE idMatiere = ?',
+        [sessionData.idMatiere]
+      );
+      console.log('📝 [DEBUG] Inscriptions à cette matière:', inscriptionsCheck[0].count);
+    }
 
     // Récupérer les émargements existants pour cette session
     const [emargements] = await db.promise().query(
@@ -548,6 +577,8 @@ exports.getEmargements = async (req, res) => {
       WHERE em.idSession = ?`,
       [id]
     );
+
+    console.log('✅ [DEBUG] Émargements trouvés:', emargements.length);
 
     // Créer un map des émargements par idEtudiant
     const emargementMap = {};
