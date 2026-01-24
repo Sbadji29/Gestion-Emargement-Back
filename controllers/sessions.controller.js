@@ -358,13 +358,14 @@ exports.deleteSession = async (req, res) => {
  * PATCH /api/sessions/:id/start
  */
 exports.startSession = async (req, res) => {
+  const connection = await db.promise().getConnection();
   try {
     const { id } = req.params;
     const heureDebut = new Date();
 
-    // Vérifier que la session existe
-    const [session] = await db.promise().query(
-      'SELECT id, heureDebut FROM session_examen WHERE id = ?',
+    // Vérifier que la session existe et récupérer l'idExamen
+    const [session] = await connection.query(
+      'SELECT id, idExamen, heureDebut FROM session_examen WHERE id = ?',
       [id]
     );
 
@@ -382,25 +383,48 @@ exports.startSession = async (req, res) => {
       });
     }
 
-    // Mettre à jour heureDebut
-    await db.promise().query(
-      'UPDATE session_examen SET heureDebut = ? WHERE id = ?',
-      [heureDebut, id]
-    );
+    // Transaction pour mettre à jour la session ET le statut de l'examen
+    await connection.beginTransaction();
 
-    return res.status(200).json({
-      message: 'Session démarrée avec succès',
-      data: {
-        idSession: id,
-        heureDebut
-      }
-    });
+    try {
+      // Mettre à jour heureDebut de la session
+      await connection.query(
+        'UPDATE session_examen SET heureDebut = ? WHERE id = ?',
+        [heureDebut, id]
+      );
+
+      // Mettre à jour le statut de l'examen à 'EnCours'
+      await connection.query(
+        "UPDATE examen SET statut = 'EnCours' WHERE id = ?",
+        [session[0].idExamen]
+      );
+
+      await connection.commit();
+
+      console.log(`✅ Session ${id} démarrée - Examen ${session[0].idExamen} passé à EnCours`);
+
+      return res.status(200).json({
+        message: 'Session démarrée avec succès',
+        data: {
+          idSession: id,
+          idExamen: session[0].idExamen,
+          heureDebut,
+          statutExamen: 'EnCours'
+        }
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    }
+
   } catch (error) {
     console.error('Erreur démarrage session:', error);
     return res.status(500).json({
       message: 'Erreur lors du démarrage de la session',
       error: error.message
     });
+  } finally {
+    connection.release();
   }
 };
 
@@ -413,9 +437,9 @@ exports.endSession = async (req, res) => {
     const { id } = req.params;
     const heureFin = new Date();
 
-    // Vérifier que la session existe
+    // Vérifier que la session existe et récupérer l'idExamen
     const [session] = await db.promise().query(
-      'SELECT id, heureDebut, heureFin FROM session_examen WHERE id = ?',
+      'SELECT id, idExamen, heureDebut, heureFin FROM session_examen WHERE id = ?',
       [id]
     );
 
@@ -440,29 +464,39 @@ exports.endSession = async (req, res) => {
       });
     }
 
-    // Mettre à jour heureFin et libérer la salle
+    // Mettre à jour heureFin, libérer la salle ET changer le statut de l'examen
     const connection = await db.promise().getConnection();
     try {
       await connection.beginTransaction();
 
+      // 1. Mettre à jour heureFin de la session
       await connection.query(
         'UPDATE session_examen SET heureFin = ? WHERE id = ?',
         [heureFin, id]
       );
 
-      // Récupérer l'idSalle pour la libérer
+      // 2. Récupérer l'idSalle pour la libérer
       const [sessionData] = await connection.query(
         'SELECT idSalle FROM session_examen WHERE id = ?',
         [id]
       );
 
-      // Libérer la salle
+      // 3. Libérer la salle
       await connection.query(
         "UPDATE salle SET statut = 'Disponible' WHERE id = ?",
         [sessionData[0].idSalle]
       );
 
+      // 4. Mettre à jour le statut de l'examen à 'Termine'
+      await connection.query(
+        "UPDATE examen SET statut = 'Termine' WHERE id = ?",
+        [session[0].idExamen]
+      );
+
       await connection.commit();
+
+      console.log(`✅ Session ${id} terminée - Examen ${session[0].idExamen} passé à Termine`);
+
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -474,8 +508,10 @@ exports.endSession = async (req, res) => {
       message: 'Session terminée avec succès',
       data: {
         idSession: id,
+        idExamen: session[0].idExamen,
         heureDebut: session[0].heureDebut,
-        heureFin
+        heureFin,
+        statutExamen: 'Termine'
       }
     });
   } catch (error) {
