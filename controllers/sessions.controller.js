@@ -96,6 +96,22 @@ exports.createSession = async (req, res) => {
     // 7. Ajouter les surveillants dans la table de liaison
     if (Array.isArray(surveillants) && surveillants.length > 0) {
       await SessionSurveillant.addSurveillants(connection, result.insertId, surveillants);
+
+      // 7b. Mettre à jour le statut des candidatures en 'Accepte'
+      // On cherche l'appel à candidature lié à cet examen
+      const [appels] = await connection.query('SELECT id FROM appel_candidature WHERE idExamen = ?', [idExamen]);
+      
+      if (appels.length > 0) {
+          const idAppel = appels[0].id;
+          // On met à jour le statut pour tous les surveillants sélectionnés
+          // Note: On fait une jointure pour faire correspondre surveillant.id -> candidature.idUtilisateur
+          await connection.query(`
+              UPDATE candidature c
+              INNER JOIN surveillant s ON c.idUtilisateur = s.idUtilisateur
+              SET c.statut = 'Accepte'
+              WHERE s.id IN (?) AND c.idAppel = ?
+          `, [surveillants, idAppel]);
+      }
     }
 
     // 8. Changer statut de la salle en 'Occupee'
