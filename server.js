@@ -1,4 +1,6 @@
 const express = require("express");
+const http = require("http");
+const socketIo = require("socket.io");
 const cors = require("cors");
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger.config');
@@ -23,7 +25,21 @@ const Section = require("./models/Section.model");
 const Inscription = require("./models/inscription.model");
 const InscriptionMatiere = require("./models/inscriptionMatiere.model");
 const Annee = require("./models/anneeAcademique.model");
+
 const app = express();
+const server = http.createServer(app);
+
+// Configuration Socket.IO avec CORS
+const io = socketIo(server, {
+  cors: {
+    origin: "http://localhost:4200",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+// Rendre io accessible dans toute l'application
+app.set('io', io);
 
 // Middlewares
 app.use(express.json());
@@ -101,6 +117,7 @@ async function initDatabase() {
 
 // Lancement du serveur
 const PORT = process.env.PORT || 3000;
+
 app.use("/api/auth", authRoutes);
 app.use("/api/ufr", ufrRoutes);
 app.use("/api/annees-academiques", anneeAcademiqueRoutes);
@@ -121,8 +138,38 @@ app.use('/api/statistiques', statistiquesRoutes); // Routes statistiques
 app.use('/api/surveillant', require('./routes/surveillant-workflow.routes'));
 app.use('/api/etudiants-lookup', require('./routes/etudiants.lookup.routes')); // specific separate route to avoid conflict or just convenient
 
-app.listen(PORT, async () => {
-  console.log(`Serveur démarré sur http://localhost:${PORT}`);
-  console.log(`Documentation Swagger disponible sur http://localhost:${PORT}/api-docs`);
+// Gestion des connexions WebSocket
+io.on('connection', (socket) => {
+  console.log('✅ Client WebSocket connecté:', socket.id);
+
+  // Rejoindre une room de session
+  socket.on('join-session', (sessionId) => {
+    socket.join(`session-${sessionId}`);
+    console.log(`📍 Client ${socket.id} a rejoint la session ${sessionId}`);
+    
+    // Notifier les autres clients de la room
+    socket.to(`session-${sessionId}`).emit('user-joined', {
+      socketId: socket.id,
+      sessionId: sessionId
+    });
+  });
+
+  // Quitter une room de session
+  socket.on('leave-session', (sessionId) => {
+    socket.leave(`session-${sessionId}`);
+    console.log(`📤 Client ${socket.id} a quitté la session ${sessionId}`);
+  });
+
+  // Déconnexion
+  socket.on('disconnect', () => {
+    console.log('❌ Client WebSocket déconnecté:', socket.id);
+  });
+});
+
+// Lancement du serveur avec support WebSocket
+server.listen(PORT, async () => {
+  console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
+  console.log(`📚 Documentation Swagger disponible sur http://localhost:${PORT}/api-docs`);
+  console.log(`🔌 WebSocket activé sur ws://localhost:${PORT}`);
   await initDatabase();
 });

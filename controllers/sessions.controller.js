@@ -462,6 +462,16 @@ exports.startSession = async (req, res) => {
 
       console.log(`✅ Session ${id} démarrée - Examen ${session[0].idExamen} passé à EnCours`);
 
+      // Émettre l'événement WebSocket
+      const io = req.app.get('io');
+      io.to(`session-${id}`).emit('session-started', {
+        idSession: id,
+        idExamen: session[0].idExamen,
+        heureDebut,
+        statutExamen: 'EnCours'
+      });
+      console.log(`📡 WebSocket: Session ${id} démarrée`);
+
       return res.status(200).json({
         message: 'Session démarrée avec succès',
         data: {
@@ -585,6 +595,16 @@ exports.endSession = async (req, res) => {
       await connection.commit();
 
       console.log(`✅ Session ${id} terminée - Examen ${session[0].idExamen} passé à Termine - Absents enregistrés`);
+
+      // Émettre l'événement WebSocket
+      const io = req.app.get('io');
+      io.to(`session-${id}`).emit('session-ended', {
+        idSession: id,
+        idExamen: session[0].idExamen,
+        heureFin,
+        statutExamen: 'Termine'
+      });
+      console.log(`📡 WebSocket: Session ${id} terminée`);
 
     } catch (error) {
       await connection.rollback();

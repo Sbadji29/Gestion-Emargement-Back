@@ -452,11 +452,13 @@ exports.getHistorique = async (req, res) => {
       tauxPresence: exam.nombreInscrits > 0
         ? ((exam.nombrePresents / exam.nombreInscrits) * 100).toFixed(2)
         : 0,
-      remuneration: exam.remuneration || 0
+      remuneration: Number(exam.remuneration) || 0
     }));
 
-    // Calculer la somme totale des rémunérations
-    const totalRemuneration = examensFormates.reduce((sum, exam) => sum + (exam.remuneration || 0), 0);
+    // Calculer la somme totale des rémunérations (s'assurer que c'est un nombre)
+    const totalRemuneration = examensFormates.reduce((sum, exam) => {
+      return sum + Number(exam.remuneration);
+    }, 0);
 
     return res.status(200).json({
       message: 'Historique des examens surveillés',

@@ -752,16 +752,24 @@ exports.scanStudent = async (req, res) => {
         );
         heureScan = scanResult[0].dateHeure;
 
+        // Émettre l'événement WebSocket en temps réel
+        const io = req.app.get('io');
+        const scanData = {
+            codeEtudiant: studentInfo.codeEtudiant,
+            nom: studentInfo.nom,
+            prenom: studentInfo.prenom,
+            classe: studentInfo.nomClasse,
+            statut: newStatus,
+            heureScan: heureScan
+        };
+        
+        // Envoyer à tous les clients connectés à cette session
+        io.to(`session-${sessionId}`).emit('student-scanned', scanData);
+        console.log(`📡 WebSocket: Scan émis pour session ${sessionId}`, scanData);
+
         return res.status(200).json({ 
             message: message, 
-            data: { 
-                codeEtudiant: studentInfo.codeEtudiant,
-                nom: studentInfo.nom,
-                prenom: studentInfo.prenom,
-                classe: studentInfo.nomClasse,
-                statut: newStatus,
-                heureScan: heureScan
-            } 
+            data: scanData
         });
 
     } catch (error) {
