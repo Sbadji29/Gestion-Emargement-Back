@@ -387,7 +387,7 @@ exports.getHistorique = async (req, res) => {
 
     const stats = statsGlobal[0];
     const totalHeuresEnHeures = stats.totalHeuresSurveillees 
-      ? (stats.totalHeuresSurveillees / 60).toFixed(2) 
+      ? parseFloat((stats.totalHeuresSurveillees / 60).toFixed(2))
       : 0;
 
     // Récupérer la liste détaillée des examens terminés
@@ -442,7 +442,7 @@ exports.getHistorique = async (req, res) => {
       heureDebut: exam.heureDebut,
       heureFin: exam.heureFin,
       duree: exam.duree,
-      dureeEnHeures: (exam.duree / 60).toFixed(2),
+      dureeEnHeures: parseFloat((exam.duree / 60).toFixed(2)),
       lieu: exam.salle && exam.batiment 
         ? `Salle ${exam.salle} - ${exam.batiment}`
         : 'Non assigné',
@@ -450,7 +450,7 @@ exports.getHistorique = async (req, res) => {
       nombrePresents: exam.nombrePresents,
       nombreAbsents: exam.nombreAbsents,
       tauxPresence: exam.nombreInscrits > 0
-        ? ((exam.nombrePresents / exam.nombreInscrits) * 100).toFixed(2)
+        ? parseFloat(((exam.nombrePresents / exam.nombreInscrits) * 100).toFixed(2))
         : 0,
       remuneration: Number(exam.remuneration) || 0
     }));
