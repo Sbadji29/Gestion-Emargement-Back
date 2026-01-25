@@ -205,7 +205,7 @@ exports.getSessionById = async (req, res) => {
 
     // Récupérer les classes concernées (étudiants inscrits à cette matière)
     const [classes] = await db.promise().query(
-      `SELECT DISTINCT c.id, c.nomClasse, c.niveau
+      `SELECT DISTINCT c.id, c.nomClasse
        FROM inscription_matiere im
        INNER JOIN inscription i ON im.idInscription = i.id
        INNER JOIN classe c ON i.idClasse = c.id
