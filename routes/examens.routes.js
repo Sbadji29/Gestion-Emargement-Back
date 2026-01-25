@@ -406,7 +406,108 @@ router.post('/:id/scan', roleMiddleware(['SURVEILLANT', 'ADMIN', 'SUPERADMIN']),
  */
 router.delete('/:id', roleMiddleware(['ADMIN', 'SUPERADMIN']), examensController.delete);
 
+/**
+ * @swagger
+ * /api/examens/{id}:
+ *   get:
+ *     summary: Récupérer les informations complètes d'un examen par ID
+ *     description: Retourne toutes les informations de l'examen ainsi que ses sessions associées
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de l'examen
+ *     responses:
+ *       200:
+ *         description: Examen trouvé avec ses sessions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     codeExamen:
+ *                       type: string
+ *                     dateExamen:
+ *                       type: string
+ *                       format: date-time
+ *                     duree:
+ *                       type: integer
+ *                       description: Durée en minutes
+ *                     typeExamen:
+ *                       type: string
+ *                     statut:
+ *                       type: string
+ *                       enum: [Planifie, EnCours, Termine, Annule]
+ *                     nombrePlaces:
+ *                       type: integer
+ *                     idMatiere:
+ *                       type: integer
+ *                     nomMatiere:
+ *                       type: string
+ *                     nomClasse:
+ *                       type: string
+ *                     sessions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           idExamen:
+ *                             type: integer
+ *                           idSalle:
+ *                             type: integer
+ *                           heureDebut:
+ *                             type: string
+ *                             format: date-time
+ *                           heureFin:
+ *                             type: string
+ *                             format: date-time
+ *                           nombreInscrits:
+ *                             type: integer
+ *                           nombrePresents:
+ *                             type: integer
+ *                           salle:
+ *                             type: string
+ *                           batiment:
+ *                             type: string
+ *                           nomSurveillant:
+ *                             type: string
+ *                           prenomSurveillant:
+ *                             type: string
+ *       404:
+ *         description: Examen non trouvé
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.get('/:id', examensController.getById);
+
+/**
+ * @swagger
+ * /api/examens:
+ *   get:
+ *     summary: Lister tous les examens
+ *     tags: [Examens]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Liste des examens
+ *       500:
+ *         $ref: '#/components/schemas/Error'
+ */
 router.get('/', examensController.getAll);
 
 module.exports = router;
