@@ -221,8 +221,7 @@ exports.getSessionById = async (req, res) => {
         surv.id as idSurveillant,
         u.nom,
         u.prenom,
-        u.email,
-        u.telephone
+        u.email
       FROM session_surveillant ss
       INNER JOIN surveillant surv ON ss.idSurveillant = surv.id
       INNER JOIN utilisateur u ON surv.idUtilisateur = u.idUtilisateur
