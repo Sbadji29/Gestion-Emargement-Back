@@ -352,3 +352,129 @@ exports.getProfil = async (req, res) => {
     return res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
+
+/**
+ * GET /surveillant/historique
+ * Historique complet des examens surveillés (terminés)
+ */
+exports.getHistorique = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Récupérer l'ID surveillant
+    const [surveillant] = await db.promise().query(
+      'SELECT id FROM surveillant WHERE idUtilisateur = ?',
+      [userId]
+    );
+
+    if (surveillant.length === 0) {
+      return res.status(404).json({ message: 'Profil surveillant non trouvé' });
+    }
+    const idSurveillant = surveillant[0].id;
+
+    // Récupérer les statistiques globales
+    const [statsGlobal] = await db.promise().query(
+      `SELECT 
+        COUNT(DISTINCT se.id) as totalExamensSurveilles,
+        SUM(e.duree) as totalHeuresSurveillees
+      FROM session_examen se
+      INNER JOIN session_surveillant ss ON se.id = ss.idSession
+      INNER JOIN examen e ON se.idExamen = e.id
+      WHERE ss.idSurveillant = ?
+      AND se.heureFin IS NOT NULL`,
+      [idSurveillant]
+    );
+
+    const stats = statsGlobal[0];
+    const totalHeuresEnHeures = stats.totalHeuresSurveillees 
+      ? (stats.totalHeuresSurveillees / 60).toFixed(2) 
+      : 0;
+
+    // Récupérer la liste détaillée des examens terminés
+    const [examens] = await db.promise().query(
+      `SELECT 
+        e.id as idExamen,
+        e.codeExamen,
+        e.dateExamen,
+        e.duree,
+        e.typeExamen,
+        m.nom as nomMatiere,
+        m.code as codeMatiere,
+        se.id as idSession,
+        se.heureDebut,
+        se.heureFin,
+        se.nombreInscrits,
+        se.nombrePresents,
+        s.numero as salle,
+        s.batiment,
+        s.capacite as capaciteSalle,
+        ac.remuneration,
+        COUNT(DISTINCT CASE WHEN em.statut = 'Present' OR em.statut = 'COPIE_RENDUE' THEN em.id END) as nombrePresents,
+        COUNT(DISTINCT CASE WHEN em.statut = 'Absent' THEN em.id END) as nombreAbsents
+      FROM session_examen se
+      INNER JOIN session_surveillant ss ON se.id = ss.idSession
+      INNER JOIN examen e ON se.idExamen = e.id
+      LEFT JOIN matiere m ON e.idMatiere = m.id
+      LEFT JOIN salle s ON se.idSalle = s.id
+      LEFT JOIN emargement em ON se.id = em.idSession
+      LEFT JOIN appel_candidature ac ON e.id = ac.idExamen
+      LEFT JOIN candidature c ON ac.id = c.idAppel AND c.idUtilisateur = ?
+      WHERE ss.idSurveillant = ?
+      AND se.heureFin IS NOT NULL
+      GROUP BY e.id, e.codeExamen, e.dateExamen, e.duree, e.typeExamen, 
+               m.nom, m.code, se.id, se.heureDebut, se.heureFin, 
+               se.nombreInscrits, se.nombrePresents, s.numero, s.batiment, 
+               s.capacite, ac.remuneration
+      ORDER BY se.heureFin DESC`,
+      [userId, idSurveillant]
+    );
+
+    // Formater les données
+    const examensFormates = examens.map(exam => ({
+      idExamen: exam.idExamen,
+      idSession: exam.idSession,
+      codeExamen: exam.codeExamen,
+      matiere: {
+        nom: exam.nomMatiere,
+        code: exam.codeMatiere
+      },
+      dateExamen: exam.dateExamen,
+      heureDebut: exam.heureDebut,
+      heureFin: exam.heureFin,
+      duree: exam.duree,
+      dureeEnHeures: (exam.duree / 60).toFixed(2),
+      lieu: exam.salle && exam.batiment 
+        ? `Salle ${exam.salle} - ${exam.batiment}`
+        : 'Non assigné',
+      nombreEtudiants: exam.nombreInscrits,
+      nombrePresents: exam.nombrePresents,
+      nombreAbsents: exam.nombreAbsents,
+      tauxPresence: exam.nombreInscrits > 0
+        ? ((exam.nombrePresents / exam.nombreInscrits) * 100).toFixed(2)
+        : 0,
+      remuneration: exam.remuneration || 0
+    }));
+
+    // Calculer la somme totale des rémunérations
+    const totalRemuneration = examensFormates.reduce((sum, exam) => sum + (exam.remuneration || 0), 0);
+
+    return res.status(200).json({
+      message: 'Historique des examens surveillés',
+      data: {
+        statistiques: {
+          totalExamensSurveilles: stats.totalExamensSurveilles || 0,
+          totalHeuresSurveillees: totalHeuresEnHeures,
+          totalRemunerationGagnee: totalRemuneration
+        },
+        examens: examensFormates
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur historique surveillant:', error);
+    return res.status(500).json({ 
+      message: 'Erreur serveur', 
+      error: error.message 
+    });
+  }
+};

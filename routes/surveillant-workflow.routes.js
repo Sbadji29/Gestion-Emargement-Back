@@ -130,5 +130,70 @@ router.get('/tableau-de-bord', roleMiddleware(['SURVEILLANT']), surveillantContr
  */
 router.get('/profil', roleMiddleware(['SURVEILLANT']), surveillantController.getProfil);
 
+/**
+ * @swagger
+ * /api/surveillant/historique:
+ *   get:
+ *     tags: [Surveillant]
+ *     summary: Historique des examens surveillés
+ *     description: Retourne l'historique complet des examens terminés avec statistiques (total examens, heures, rémunération)
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Historique récupéré
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     statistiques:
+ *                       type: object
+ *                       properties:
+ *                         totalExamensSurveilles:
+ *                           type: integer
+ *                         totalHeuresSurveillees:
+ *                           type: string
+ *                         totalRemunerationGagnee:
+ *                           type: number
+ *                     examens:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           codeExamen:
+ *                             type: string
+ *                           matiere:
+ *                             type: object
+ *                           dateExamen:
+ *                             type: string
+ *                           heureDebut:
+ *                             type: string
+ *                           heureFin:
+ *                             type: string
+ *                           duree:
+ *                             type: integer
+ *                           lieu:
+ *                             type: string
+ *                           nombreEtudiants:
+ *                             type: integer
+ *                           nombrePresents:
+ *                             type: integer
+ *                           nombreAbsents:
+ *                             type: integer
+ *                           remuneration:
+ *                             type: number
+ *       401:
+ *         description: Non authentifié
+ *       403:
+ *         description: Accès refusé
+ */
+router.get('/historique', roleMiddleware(['SURVEILLANT']), surveillantController.getHistorique);
+
 
 module.exports = router;
