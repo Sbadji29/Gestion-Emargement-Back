@@ -159,55 +159,115 @@ exports.createSession = async (req, res) => {
 };
 
 /**
- * Récupérer une session par ID
- * GET /api/examens/sessions/:id
+ * Récupérer une session par ID avec détails complets
+ * GET /api/sessions/:id
  */
 exports.getSessionById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Récupérer la session et ses infos principales
-    const [sessions] = await db.promise().query(
+    // Récupérer les informations complètes de la session
+    const [session] = await db.promise().query(
       `SELECT 
-        se.*,
+        se.id,
+        se.idExamen,
+        se.idSalle,
+        se.heureDebut,
+        se.heureFin,
+        se.nombreInscrits,
+        se.nombrePresents,
         e.codeExamen,
+        e.dateExamen,
+        e.duree,
         e.typeExamen,
+        e.statut as statutExamen,
+        e.nombrePlaces,
         m.nom as nomMatiere,
-        c.nomClasse,
+        m.code as codeMatiere,
         s.numero as salle,
         s.batiment,
-        s.capacite
+        s.capacite as capaciteSalle
       FROM session_examen se
       INNER JOIN examen e ON se.idExamen = e.id
       LEFT JOIN matiere m ON e.idMatiere = m.id
-      LEFT JOIN classe c ON m.idClasse = c.id
       LEFT JOIN salle s ON se.idSalle = s.id
       WHERE se.id = ?`,
       [id]
     );
 
-    if (sessions.length === 0) {
+    if (session.length === 0) {
       return res.status(404).json({
         message: 'Session non trouvée'
       });
     }
 
-    // Récupérer la liste des surveillants associés à la session
+    const sessionData = session[0];
+
+    // Récupérer les classes concernées (étudiants inscrits à cette matière)
+    const [classes] = await db.promise().query(
+      `SELECT DISTINCT c.id, c.nomClasse, c.niveau
+       FROM inscription_matiere im
+       INNER JOIN inscription i ON im.idInscription = i.id
+       INNER JOIN classe c ON i.idClasse = c.id
+       INNER JOIN examen e ON e.id = ?
+       WHERE im.idMatiere = e.idMatiere
+       ORDER BY c.nomClasse`,
+      [sessionData.idExamen]
+    );
+
+    // Récupérer la liste des surveillants assignés à cette session
     const [surveillants] = await db.promise().query(
-      `SELECT ss.idSurveillant, u.nom, u.prenom
-       FROM session_surveillant ss
-       INNER JOIN surveillant s ON ss.idSurveillant = s.id
-       INNER JOIN utilisateur u ON s.idUtilisateur = u.idUtilisateur
-       WHERE ss.idSession = ?`,
+      `SELECT 
+        surv.id as idSurveillant,
+        u.nom,
+        u.prenom,
+        u.email,
+        u.telephone
+      FROM session_surveillant ss
+      INNER JOIN surveillant surv ON ss.idSurveillant = surv.id
+      INNER JOIN utilisateur u ON surv.idUtilisateur = u.idUtilisateur
+      WHERE ss.idSession = ?
+      ORDER BY u.nom, u.prenom`,
       [id]
     );
 
+    // Formater la réponse
+    const response = {
+      session: {
+        id: sessionData.id,
+        heureDebut: sessionData.heureDebut,
+        heureFin: sessionData.heureFin,
+        nombreInscrits: sessionData.nombreInscrits,
+        nombrePresents: sessionData.nombrePresents
+      },
+      examen: {
+        id: sessionData.idExamen,
+        codeExamen: sessionData.codeExamen,
+        dateExamen: sessionData.dateExamen,
+        duree: sessionData.duree,
+        typeExamen: sessionData.typeExamen,
+        statut: sessionData.statutExamen,
+        nombrePlaces: sessionData.nombrePlaces
+      },
+      matiere: {
+        nom: sessionData.nomMatiere,
+        code: sessionData.codeMatiere
+      },
+      lieu: {
+        salle: sessionData.salle,
+        batiment: sessionData.batiment,
+        capacite: sessionData.capaciteSalle,
+        adresseComplete: sessionData.salle && sessionData.batiment 
+          ? `Salle ${sessionData.salle} - ${sessionData.batiment}`
+          : 'Non assigné'
+      },
+      classes: classes,
+      surveillants: surveillants
+    };
+
     return res.status(200).json({
-      message: 'Session trouvée',
-      data: {
-        ...sessions[0],
-        surveillants
-      }
+      message: 'Détails de la session',
+      data: response
     });
 
   } catch (error) {
