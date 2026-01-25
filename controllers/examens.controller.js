@@ -102,19 +102,20 @@ exports.getById = async (req, res) => {
       });
     }
 
-    // Récupérer les sessions associées
+    // Récupérer les sessions associées avec leurs surveillants
     const [sessions] = await db.promise().query(
       `SELECT 
         se.*,
         s.numero as salle,
         s.batiment,
-        u.nom as nomSurveillant,
-        u.prenom as prenomSurveillant
+        GROUP_CONCAT(CONCAT(u.nom, ' ', u.prenom) SEPARATOR ', ') as surveillants
       FROM session_examen se
       LEFT JOIN salle s ON se.idSalle = s.id
-      LEFT JOIN surveillant surv ON se.idSurveillant = surv.id
+      LEFT JOIN session_surveillant ss ON se.id = ss.idSession
+      LEFT JOIN surveillant surv ON ss.idSurveillant = surv.id
       LEFT JOIN utilisateur u ON surv.idUtilisateur = u.idUtilisateur
-      WHERE se.idExamen = ?`,
+      WHERE se.idExamen = ?
+      GROUP BY se.id, s.numero, s.batiment`,
       [id]
     );
 
