@@ -664,9 +664,11 @@ exports.scanStudent = async (req, res) => {
 
         // 1. Vérifier étudiant et inscription à l'examen (via matière)
         const [student] = await connection.query(`
-            SELECT e.id, e.codeEtudiant 
+            SELECT e.id, e.codeEtudiant, u.nom, u.prenom, c.nomClasse
             FROM etudiant e
+            INNER JOIN utilisateur u ON e.idUtilisateur = u.idUtilisateur
             JOIN inscription i ON e.id = i.idEtudiant
+            LEFT JOIN classe c ON i.idClasse = c.id
             JOIN inscription_matiere im ON i.id = im.idInscription
             JOIN examen ex ON im.idMatiere = ex.idMatiere
             WHERE e.codeEtudiant = ? AND ex.id = ?
@@ -676,6 +678,7 @@ exports.scanStudent = async (req, res) => {
             return res.status(404).json({ message: 'Étudiant non inscrit à cet examen ou code invalide' });
         }
         const studentId = student[0].id;
+        const studentInfo = student[0];
 
         // 2. Trouver la session active pour ce surveillant
         // On cherche une session de cet examen où ce surveillant est affecté
@@ -708,12 +711,13 @@ exports.scanStudent = async (req, res) => {
 
         // 3. Vérifier statut actuel (Machine à états)
         const [emargement] = await connection.query(
-            "SELECT id, statut FROM emargement WHERE idSession = ? AND idEtudiant = ?",
+            "SELECT id, statut, dateHeure FROM emargement WHERE idSession = ? AND idEtudiant = ?",
             [sessionId, studentId]
         );
 
         let newStatus = 'Present';
         let message = 'Présence validée';
+        let heureScan = new Date();
 
         if (emargement.length > 0) {
             const currentStatus = emargement[0].statut;
@@ -723,7 +727,7 @@ exports.scanStudent = async (req, res) => {
                 // État: Présent -> Copie Rendue
                 newStatus = 'COPIE_RENDUE';
                 message = 'Copie réceptionnée';
-                await connection.query("UPDATE emargement SET statut = ? WHERE id = ?", [newStatus, emargement[0].id]);
+                await connection.query("UPDATE emargement SET statut = ?, dateHeure = NOW() WHERE id = ?", [newStatus, emargement[0].id]);
             } else if (currentStatus === 'COPIE_RENDUE') {
                 // État: Copie Rendue -> Pas d'action (message d'erreur)
                 return res.status(400).json({ message: 'Copie déjà rendue' });
@@ -740,9 +744,23 @@ exports.scanStudent = async (req, res) => {
             );
         }
 
+        // Récupérer l'heure exacte du scan depuis la base de données
+        const [scanResult] = await connection.query(
+            "SELECT dateHeure FROM emargement WHERE idSession = ? AND idEtudiant = ?",
+            [sessionId, studentId]
+        );
+        heureScan = scanResult[0].dateHeure;
+
         return res.status(200).json({ 
             message: message, 
-            student: { code: student[0].codeEtudiant, status: newStatus } 
+            data: { 
+                codeEtudiant: studentInfo.codeEtudiant,
+                nom: studentInfo.nom,
+                prenom: studentInfo.prenom,
+                classe: studentInfo.nomClasse,
+                statut: newStatus,
+                heureScan: heureScan
+            } 
         });
 
     } catch (error) {
